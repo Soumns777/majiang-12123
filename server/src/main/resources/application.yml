@@ -1,0 +1,34 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: nanling-mahjong
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+mahjong:
+  # 单机/联机对局参数
+  room:
+    max-players: 4
+    idle-timeout-seconds: 1800      # 房间空闲回收时间
+  game:
+    action-timeout-seconds: 15      # 吃碰杠胡响应超时
+    turn-timeout-seconds: 20        # 出牌超时
+    base-score: 1                   # 底分
+    max-rounds: 8                   # 默认局数
+  # 数据库未接入前，全部使用内存仓储（InMemoryRoomRepository）
+  storage:
+    mode: memory

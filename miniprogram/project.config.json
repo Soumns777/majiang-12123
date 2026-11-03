@@ -1,0 +1,21 @@
+{
+  "miniprogramRoot": "dist/weapp/",
+  "projectname": "nanling-mahjong",
+  "description": "南陵麻将 · 四人连线",
+  "appid": "touristappid",
+  "setting": {
+    "urlCheck": false,
+    "es6": false,
+    "enhance": false,
+    "postcss": false,
+    "minified": false,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "compileType": "miniprogram",
+  "libVersion": "3.5.0",
+  "condition": {}
+}

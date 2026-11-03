@@ -1,0 +1,115 @@
+.seat {
+  width: 260rpx;
+  padding: 14rpx 16rpx;
+  border-radius: 18rpx;
+  background: rgba(6, 34, 24, 0.62);
+  border: 2rpx solid rgba(214, 178, 106, 0.18);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &.is-turn {
+    border-color: rgba(245, 217, 143, 0.9);
+    box-shadow: 0 0 0 4rpx rgba(245, 217, 143, 0.18), 0 0 24rpx rgba(245, 217, 143, 0.28);
+  }
+
+  &--left,
+  &--right {
+    width: 220rpx;
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+  }
+
+  &__avatar {
+    width: 56rpx;
+    height: 56rpx;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28rpx;
+    font-weight: 700;
+    color: #1d2b24;
+    background: linear-gradient(160deg, #f5d98f, #c9a04a);
+    flex-shrink: 0;
+  }
+
+  &__meta {
+    margin-left: 12rpx;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__name {
+    display: flex;
+    align-items: center;
+    gap: 8rpx;
+  }
+
+  &__name-text {
+    font-size: 24rpx;
+    color: #f4ecd9;
+    max-width: 130rpx;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__tag {
+    font-size: 18rpx;
+    padding: 0 8rpx;
+    border-radius: 6rpx;
+    color: #1d2b24;
+    background: #d9ad55;
+    line-height: 28rpx;
+
+    &--off {
+      background: #6b6b6b;
+      color: #f0f0f0;
+    }
+  }
+
+  &__score {
+    font-size: 22rpx;
+    color: #c9a04a;
+    margin-top: 2rpx;
+  }
+
+  &__timer {
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    color: #f5d98f;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__count {
+    margin-top: 6rpx;
+    font-size: 20rpx;
+    color: rgba(244, 236, 217, 0.55);
+  }
+
+  &__melds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6rpx;
+    margin-top: 8rpx;
+  }
+
+  &__meld {
+    display: flex;
+    gap: 2rpx;
+    padding: 4rpx;
+    border-radius: 6rpx;
+    background: rgba(0, 0, 0, 0.18);
+  }
+
+  &__discards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4rpx;
+    margin-top: 8rpx;
+    max-height: 130rpx;
+    overflow: hidden;
+  }
+}

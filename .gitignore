@@ -1,0 +1,26 @@
+# 依赖与构建产物
+node_modules/
+miniprogram/dist/
+server/target/
+*.class
+
+# 日志
+*.log
+logs/
+
+# 编辑器
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 本地配置
+miniprogram/project.private.config.json
+
+# 工作区本地数据（AI 会话记忆等）
+.workbuddy-ai/
