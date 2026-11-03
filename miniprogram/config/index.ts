@@ -15,13 +15,14 @@ export default defineConfig<'webpack5'>(async (merge) => {
       828: 1.81 / 2
     },
     sourceRoot: 'src',
-    outputRoot: 'dist',
+    // 小程序与 H5 分目录输出，避免互相覆盖
+    outputRoot: process.env.TARO_ENV === 'h5' ? 'dist/h5' : 'dist/weapp',
     plugins: [],
     defineConstants: {},
     copy: {
-      patterns: [
-        { from: 'src/sitemap.json', to: 'dist/sitemap.json' }
-      ],
+      patterns: process.env.TARO_ENV === 'h5'
+        ? []
+        : [{ from: 'src/sitemap.json', to: 'dist/weapp/sitemap.json' }],
       options: {}
     },
     framework: 'react',

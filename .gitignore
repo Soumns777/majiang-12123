@@ -21,3 +21,6 @@ Thumbs.db
 
 # 本地配置
 miniprogram/project.private.config.json
+
+# 工作区本地数据（AI 会话记忆等）
+.workbuddy-ai/

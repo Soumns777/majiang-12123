@@ -2,10 +2,39 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="format-detection" content="telephone=no" />
+  <meta name="theme-color" content="#0c3b2a" />
   <title>南陵麻将</title>
+  <style>
+    /*
+     * H5 适配说明：
+     * Taro 构建期把 rpx 编译成了 rem（1rem = 40rpx），但运行期不会设置根字号，
+     * 浏览器默认 16px 会让 750rpx 只渲染成 300px，整页缩水。
+     * 这里按视口宽度反推根字号：1rem = 40rpx = 视口宽/750*40 = 视口宽/18.75，
+     * 于是 750rpx 恰好铺满一屏，与小程序的 rpx 表现一致。
+     */
+    html {
+      font-size: calc(100vw / 18.75);
+      background-color: #072418;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    /* 宽屏（桌面 / 平板横屏）封顶在 640px，避免整页被等比放大到失真 */
+    @media (min-width: 640px) {
+      html {
+        font-size: calc(640px / 18.75);
+      }
+    }
+
+    body {
+      margin: 0;
+      max-width: 640px;
+      margin-right: auto;
+      margin-left: auto;
+    }
+  </style>
 </head>
 <body>
   <div id="app"></div>

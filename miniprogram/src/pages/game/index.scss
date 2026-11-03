@@ -114,7 +114,7 @@
   }
 
   &__mine {
-    padding: 16rpx 20rpx calc(20rpx + env(safe-area-inset-bottom));
+    padding: 16rpx 8rpx calc(20rpx + env(safe-area-inset-bottom));
     background: rgba(4, 26, 18, 0.86);
     border-top: 2rpx solid rgba(214, 178, 106, 0.16);
   }
@@ -148,11 +148,25 @@
 
   &__hand {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: center;
-    gap: 6rpx;
-    min-height: 200rpx;
-    padding-top: 12rpx;
+    align-items: flex-end;
+    gap: 2rpx;
+    min-height: 150rpx;
+    padding: 12rpx 0 0;
+
+    /*
+     * 手牌最多 14 张（碰/杠后仍然回到 14 张），可用宽度 750 - 16(外层) = 734rpx。
+     * 50rpx × 14 + 2rpx × 13 = 726rpx，单行不叠放，牌面完整可见。
+     */
+    .mj-tile {
+      position: relative;
+      z-index: 1;
+
+      &.is-selected {
+        z-index: 20;
+      }
+    }
   }
 
   &__actions {

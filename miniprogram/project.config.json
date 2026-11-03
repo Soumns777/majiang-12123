@@ -1,5 +1,5 @@
 {
-  "miniprogramRoot": "dist/",
+  "miniprogramRoot": "dist/weapp/",
   "projectname": "nanling-mahjong",
   "description": "南陵麻将 · 四人连线",
   "appid": "touristappid",

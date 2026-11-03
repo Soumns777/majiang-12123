@@ -60,7 +60,7 @@ npm install
 npm run dev:weapp
 ```
 
-用微信开发者工具「导入项目」，选择 **miniprogram 目录**（`project.config.json` 里 `miniprogramRoot` 已指向 `dist/`）。
+用微信开发者工具「导入项目」，选择 **miniprogram 目录**（`project.config.json` 里 `miniprogramRoot` 已指向 `dist/weapp/`）。
 
 要点：
 
@@ -68,7 +68,41 @@ npm run dev:weapp
 - 真机预览时，把 `src/config/env.ts` 里的 `127.0.0.1` 改成电脑局域网 IP。
 - 上线前把 `project.config.json` 的 `appid` 换成自己的小程序 AppID。
 
-### 3. 四人联机冒烟（无需微信开发者工具）
+### 3. 打包 H5（浏览器版）
+
+同一套代码可以直接编译成网页版：
+
+```bash
+cd miniprogram
+npm run build:h5          # 产物：dist/h5
+python -m http.server 5173 -d dist/h5
+# 浏览器打开 http://localhost:5173
+```
+
+开发时也可以热更新：`npm run dev:h5`（默认 10086 端口）。
+
+说明：
+
+- 小程序产物在 `dist/weapp`，H5 在 `dist/h5`，两者互不覆盖。
+- H5 的 WebSocket 地址自动推导：本地开发连「当前主机的 8080」；https 部署时连「同域 `/ws/game`」，由 Nginx 反代到后端。
+- 必须用 HTTP 服务打开，直接双击 `index.html`（`file://`）会因绝对路径加载不到资源。
+- 微信登录、分享、订阅消息等 JSAPI 在 H5 不可用；当前版本没有用到这些能力，功能与小程序一致。
+- 上线时后端需要允许跨域（`WebMvcConfig` 已放开 `/api/**`，WS 用 `setAllowedOriginPatterns("*")`，生产建议收窄到自己的域名）。
+
+#### H5 尺寸适配（重要）
+
+Taro 编译 H5 时会把 `rpx` 转成 `rem`（`1rem = 40rpx`），但**运行期不会设置根字号**，浏览器默认的 16px 会让 `750rpx` 只渲染成 300px，整页缩水约 23%。
+因此 `src/index.html` 里显式把根字号绑到视口宽度：
+
+```css
+html { font-size: calc(100vw / 18.75); }        /* 1rem = 40rpx = 视口宽/750*40 */
+@media (min-width: 640px) { html { font-size: calc(640px / 18.75); } }  /* 宽屏封顶 */
+```
+
+这样 `750rpx` 恰好铺满一屏，与小程序的 `rpx` 表现一致；宽屏（桌面 / 平板横屏）封顶在 640px，不会等比放大到失真。
+修改 `designWidth` 或 `deviceRatio` 时，`18.75` 这个除数需要同步调整（`designWidth / 40`）。
+
+### 4. 四人联机冒烟（无需微信开发者工具）
 
 ```bash
 # 后端已启动的前提下

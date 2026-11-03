@@ -30,12 +30,30 @@ class GameSocket {
 
   private open() {
     this.clearTimers()
+    let result: any
     try {
-      this.task = Taro.connectSocket({ url: this.url })
+      result = Taro.connectSocket({ url: this.url })
     } catch (error) {
       this.scheduleReconnect()
       return
     }
+
+    // 微信端返回 SocketTask，H5 端返回 Promise<SocketTask>，两种都要兼容
+    if (result && typeof result.then === 'function') {
+      result
+        .then((task: any) => this.bindTask(task))
+        .catch(() => this.scheduleReconnect())
+      return
+    }
+    this.bindTask(result)
+  }
+
+  private bindTask(task: any) {
+    if (!task) {
+      this.scheduleReconnect()
+      return
+    }
+    this.task = task
 
     this.task.onOpen(() => {
       this.connected = true

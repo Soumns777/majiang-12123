@@ -31,11 +31,12 @@
     box-shadow: 0 2rpx 0 #b7a884;
   }
 
+  /* 手牌专用尺寸：14 张要在一行内放下，宽度按 734rpx 可用宽度反推 */
   &--hand {
-    width: 64rpx;
-    height: 92rpx;
-    border-radius: 8rpx;
-    box-shadow: 0 4rpx 0 #b7a884, 0 6rpx 12rpx rgba(0, 0, 0, 0.22);
+    width: 50rpx;
+    height: 72rpx;
+    border-radius: 7rpx;
+    box-shadow: 0 3rpx 0 #b7a884, 0 5rpx 10rpx rgba(0, 0, 0, 0.22);
   }
 
   &--back {
@@ -92,7 +93,7 @@
   }
 
   &--hand &__rank {
-    font-size: 30rpx;
+    font-size: 26rpx;
   }
 
   &__suit {
@@ -124,7 +125,8 @@
   }
 
   &--hand &__suit {
-    font-size: 20rpx;
+    margin-top: 2rpx;
+    font-size: 17rpx;
   }
 
   &__honor {
@@ -155,6 +157,6 @@
   }
 
   &--hand &__honor {
-    font-size: 32rpx;
+    font-size: 28rpx;
   }
 }

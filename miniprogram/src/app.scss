@@ -1,14 +1,21 @@
-page {
+page,
+body {
   background-color: #0c3b2a;
   color: #f6f1e4;
   font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', Helvetica, sans-serif;
   font-size: 28rpx;
 }
 
+/* 小程序是 view/text，H5 会被编译成 taro-view-core 等自定义元素，两者都要覆盖 */
 view,
 text,
 input,
-button {
+button,
+taro-view-core,
+taro-text-core,
+taro-input-core,
+taro-button-core,
+taro-scroll-view-core {
   box-sizing: border-box;
 }
 
