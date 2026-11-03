@@ -1,0 +1,175 @@
+.room {
+  min-height: 100vh;
+  padding: 40rpx 32rpx 200rpx;
+  background: radial-gradient(circle at 50% 0%, #176346 0%, #0c3b2a 55%, #072418 100%);
+  display: flex;
+  flex-direction: column;
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30rpx 0 10rpx;
+  }
+
+  &__label {
+    font-size: 22rpx;
+    color: rgba(247, 239, 217, 0.55);
+    letter-spacing: 4rpx;
+  }
+
+  &__code {
+    display: flex;
+    align-items: baseline;
+    gap: 16rpx;
+    margin-top: 12rpx;
+  }
+
+  &__code-text {
+    font-size: 72rpx;
+    font-weight: 700;
+    letter-spacing: 12rpx;
+    color: #f5d98f;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__copy {
+    font-size: 22rpx;
+    color: rgba(245, 217, 143, 0.7);
+    padding: 4rpx 14rpx;
+    border-radius: 999rpx;
+    border: 2rpx solid rgba(245, 217, 143, 0.35);
+  }
+
+  &__hint {
+    margin-top: 10rpx;
+    font-size: 22rpx;
+    color: rgba(247, 239, 217, 0.4);
+  }
+
+  &__seats {
+    margin-top: 40rpx;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20rpx;
+  }
+
+  &__seat {
+    width: calc(50% - 10rpx);
+    padding: 28rpx 24rpx;
+    border-radius: 22rpx;
+    background: rgba(5, 30, 21, 0.66);
+    border: 2rpx solid rgba(214, 178, 106, 0.16);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    &.is-me {
+      border-color: rgba(245, 217, 143, 0.55);
+    }
+
+    &.is-ready {
+      background: rgba(18, 78, 54, 0.8);
+    }
+
+    &.is-empty {
+      border-style: dashed;
+      opacity: 0.6;
+    }
+  }
+
+  &__avatar {
+    width: 88rpx;
+    height: 88rpx;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36rpx;
+    font-weight: 700;
+    color: #1d2b24;
+    background: linear-gradient(160deg, #f5d98f, #c9a04a);
+  }
+
+  &__name {
+    margin-top: 14rpx;
+    font-size: 26rpx;
+    color: #f4ecd9;
+  }
+
+  &__badges {
+    display: flex;
+    gap: 8rpx;
+    margin-top: 10rpx;
+    min-height: 32rpx;
+  }
+
+  &__badge {
+    font-size: 18rpx;
+    line-height: 28rpx;
+    padding: 0 10rpx;
+    border-radius: 6rpx;
+    color: #d8c79a;
+    border: 2rpx solid rgba(216, 199, 154, 0.4);
+
+    &--dealer {
+      background: #d9ad55;
+      color: #1d2b24;
+      border-color: #d9ad55;
+    }
+
+    &--ready {
+      background: rgba(78, 201, 138, 0.2);
+      color: #7fe0ac;
+      border-color: rgba(78, 201, 138, 0.5);
+    }
+  }
+
+  &__info {
+    margin-top: 36rpx;
+    padding: 26rpx 28rpx;
+    border-radius: 22rpx;
+    background: rgba(5, 30, 21, 0.5);
+    border: 2rpx solid rgba(255, 255, 255, 0.06);
+  }
+
+  &__info-row {
+    display: flex;
+    align-items: flex-start;
+    padding: 10rpx 0;
+  }
+
+  &__info-key {
+    width: 90rpx;
+    flex-shrink: 0;
+    font-size: 22rpx;
+    color: rgba(247, 239, 217, 0.42);
+  }
+
+  &__info-value {
+    flex: 1;
+    font-size: 22rpx;
+    color: rgba(247, 239, 217, 0.75);
+    line-height: 1.6;
+  }
+
+  &__actions {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    gap: 16rpx;
+    padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(7, 36, 24, 0) 0%, rgba(7, 36, 24, 0.96) 40%);
+  }
+
+  &__btn {
+    flex: 1;
+    padding: 0 20rpx;
+
+    &--primary {
+      flex: 1.2;
+    }
+  }
+}

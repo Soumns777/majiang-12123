@@ -1,0 +1,56 @@
+page {
+  background-color: #0c3b2a;
+  color: #f6f1e4;
+  font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', Helvetica, sans-serif;
+  font-size: 28rpx;
+}
+
+view,
+text,
+input,
+button {
+  box-sizing: border-box;
+}
+
+.mj-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88rpx;
+  padding: 0 40rpx;
+  border-radius: 44rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1d2b24;
+  background: linear-gradient(180deg, #f5d98f 0%, #d9ad55 100%);
+  box-shadow: 0 8rpx 18rpx rgba(0, 0, 0, 0.28);
+  border: none;
+
+  &::after {
+    border: none;
+  }
+
+  &--ghost {
+    background: transparent;
+    color: #f0e6cf;
+    border: 2rpx solid rgba(240, 230, 207, 0.4);
+    box-shadow: none;
+  }
+
+  &--disabled {
+    opacity: 0.45;
+    box-shadow: none;
+  }
+
+  &--sm {
+    height: 64rpx;
+    padding: 0 26rpx;
+    font-size: 26rpx;
+  }
+}
+
+.mj-card {
+  background: rgba(8, 40, 28, 0.72);
+  border: 2rpx solid rgba(214, 178, 106, 0.24);
+  border-radius: 20rpx;
+}

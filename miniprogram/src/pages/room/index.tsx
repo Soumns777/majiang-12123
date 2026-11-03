@@ -1,0 +1,132 @@
+import { Text, View } from '@tarojs/components'
+import Taro from '@tarojs/taro'
+import { useEffect } from 'react'
+
+import { socket } from '../../services/socket'
+import { mySeat, useGameStore } from '../../store/gameStore'
+import './index.scss'
+
+export default function Room() {
+  const table = useGameStore((state) => state.table)
+  const playerId = useGameStore((state) => state.playerId)
+  const error = useGameStore((state) => state.error)
+  const clearError = useGameStore((state) => state.clearError)
+
+  const seatIndex = mySeat(table, playerId)
+  const me = table?.players.find((player) => player.playerId === playerId)
+  const seated = table?.players.filter((player) => player.playerId) ?? []
+  const isOwner = table?.ownerId === playerId
+  const allReady = seated.length === 4 && seated.every((player) => player.ready)
+
+  useEffect(() => {
+    if (!error) {
+      return
+    }
+    Taro.showToast({ title: error, icon: 'none' })
+    clearError()
+  }, [error, clearError])
+
+  useEffect(() => {
+    if (!table) {
+      Taro.redirectTo({ url: '/pages/index/index' })
+    }
+  }, [table])
+
+  useEffect(() => {
+    if (table?.status === 'PLAYING' || table?.status === 'FINISHED') {
+      Taro.redirectTo({ url: '/pages/game/index' })
+    }
+  }, [table?.status])
+
+  if (!table) {
+    return <View className="room" />
+  }
+
+  const copyCode = () => {
+    Taro.setClipboardData({ data: table.roomId })
+  }
+
+  const toggleReady = () => {
+    socket.send('ROOM_READY', { ready: !me?.ready })
+  }
+
+  const startGame = () => {
+    socket.send('GAME_START')
+  }
+
+  const leaveRoom = () => {
+    socket.send('ROOM_LEAVE')
+    Taro.navigateBack()
+  }
+
+  return (
+    <View className="room">
+      <View className="room__header">
+        <Text className="room__label">房间号</Text>
+        <View className="room__code" onClick={copyCode}>
+          <Text className="room__code-text">{table.roomId}</Text>
+          <Text className="room__copy">复制</Text>
+        </View>
+        <Text className="room__hint">把房间号发给好友，凑齐 4 人即可开局</Text>
+      </View>
+
+      <View className="room__seats">
+        {table.players.map((player) => {
+          const empty = !player.playerId
+          return (
+            <View
+              className={`room__seat ${player.seat === seatIndex ? 'is-me' : ''} ${
+                player.ready ? 'is-ready' : ''
+              } ${empty ? 'is-empty' : ''}`}
+              key={player.seat}
+            >
+              <View className="room__avatar">
+                {empty ? '空' : (player.nickname || '闲').slice(0, 1)}
+              </View>
+              <Text className="room__name">{empty ? '等待加入' : player.nickname}</Text>
+              <View className="room__badges">
+                {player.seat === 0 && <Text className="room__badge room__badge--dealer">庄</Text>}
+                {player.playerId === table.ownerId && <Text className="room__badge">房主</Text>}
+                {!empty && player.ready && <Text className="room__badge room__badge--ready">已准备</Text>}
+              </View>
+            </View>
+          )
+        })}
+      </View>
+
+      <View className="room__info">
+        <View className="room__info-row">
+          <Text className="room__info-key">局数</Text>
+          <Text className="room__info-value">共 {table.maxRounds} 局</Text>
+        </View>
+        <View className="room__info-row">
+          <Text className="room__info-key">癞子</Text>
+          <Text className="room__info-value">开局翻宝，翻出牌的后一张为癞子</Text>
+        </View>
+        <View className="room__info-row">
+          <Text className="room__info-key">胡牌</Text>
+          <Text className="room__info-value">4 面子 + 1 将 · 缺一门 · 有癞子需命中调味剂</Text>
+        </View>
+      </View>
+
+      <View className="room__actions">
+        <View className="mj-btn mj-btn--ghost room__btn" onClick={leaveRoom}>
+          退出
+        </View>
+        <View className={`mj-btn room__btn ${me?.ready ? 'mj-btn--ghost' : ''}`} onClick={toggleReady}>
+          {me?.ready ? '取消准备' : '准备'}
+        </View>
+        {isOwner && (
+          <View
+            className={`mj-btn room__btn room__btn--primary ${
+              allReady ? '' : 'mj-btn--disabled'
+            }`}
+            onClick={startGame}
+          >
+            开始
+          </View>
+        )}
+      </View>
+    </View>
+  )
+}
