@@ -428,8 +428,7 @@ public class GameTable {
         Collections.sort(hands[next]);
         currentSeat = next;
         lastDrawnTile = tile;
-        lastDiscardTile = -1;
-        lastDiscardSeat = -1;
+        // 保留 lastDiscardTile 供前端展示“最新打出”，响应阶段已结束，不会误判为可碰杠
         phase = GamePhase.PLAYER_TURN;
         deadlineAt = System.currentTimeMillis() + config.getTurnTimeoutSeconds() * 1000L;
     }
