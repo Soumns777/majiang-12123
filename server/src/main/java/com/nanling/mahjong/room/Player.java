@@ -12,6 +12,8 @@ public class Player {
     private boolean ready;
     private boolean online;
     private int score;
+    /** 欢乐豆余额，开局默认 20 豆，每局按「牌型分 × 底分」结算 */
+    private int beans;
     private String sessionId;
     /** 机器人：由服务端定时器代打，没有 WebSocket 会话 */
     private boolean bot;
@@ -91,6 +93,18 @@ public class Player {
 
     public void addScore(int delta) {
         this.score += delta;
+    }
+
+    public int getBeans() {
+        return beans;
+    }
+
+    public void setBeans(int beans) {
+        this.beans = beans;
+    }
+
+    public void addBeans(int delta) {
+        this.beans += delta;
     }
 
     public boolean isBot() {

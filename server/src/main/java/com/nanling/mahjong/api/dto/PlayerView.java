@@ -11,6 +11,8 @@ public record PlayerView(
         String nickname,
         String avatar,
         int score,
+        /** 欢乐豆余额 */
+        int beans,
         boolean ready,
         boolean online,
         /** 是否机器人（前端画个 🤖 角标） */

@@ -51,6 +51,18 @@ public class GameTable {
     /** 自制规则「打出癞子，全场作废」是否已触发（本局内一旦置位不再回退） */
     private boolean wildcardVoided;
 
+    /** 最后一张牌是不是杠后补的（杠开 +2 分要用） */
+    private boolean lastDrawFromKong;
+
+    /** 延时申请：申请座位，-1 表示没有申请 */
+    private int extendSeat = -1;
+    /** 已同意延时的座位 */
+    private final Set<Integer> extendApprovals = new LinkedHashSet<>();
+    /** 申请延时那一刻剩余的思考时间，投票期间冻结，投票结束再还回去 */
+    private long extendPausedMs;
+    /** 投票窗口：这么长时间内没人全部同意就自动作废 */
+    public static final long EXTEND_VOTE_WINDOW_MS = 60_000L;
+
     private GameResult result;
     private long deadlineAt;
 
@@ -104,6 +116,7 @@ public class GameTable {
         phase = GamePhase.PLAYER_TURN;
         currentSeat = dealerSeat;
         lastDrawnTile = extra;
+        lastDrawFromKong = false;
         deadlineAt = System.currentTimeMillis() + config.getTurnTimeoutSeconds() * 1000L;
     }
 
@@ -188,7 +201,7 @@ public class GameTable {
         return Collections.unmodifiableMap(pendingClaims);
     }
 
-    /** 当前打出的牌，某位玩家可以做的响应。 */
+    /** 当前打出的牌，某位玩家可以做的响应。南陵麻将不能胡别人的牌，所以这里永远不会有 HU。 */
     public List<ActionType> claimsFor(int seat) {
         if (phase != GamePhase.WAITING_CLAIM || lastDiscardTile < 0 || seat == lastDiscardSeat) {
             return List.of();
@@ -202,7 +215,8 @@ public class GameTable {
             return List.of();
         }
         List<ActionType> actions = new ArrayList<>();
-        if (WinChecker.check(new WinRequest(hands[seat], melds[seat], config, true, wildcardVoided)).isWin()) {
+        if (WinChecker.check(WinRequest.selfDraw(
+                hands[seat], melds[seat], config, wildcardVoided, lastDrawnTile, lastDrawFromKong)).isWin()) {
             actions.add(ActionType.HU);
         }
         if (hasConcealedKong(seat)) {
@@ -242,6 +256,8 @@ public class GameTable {
         lastDiscardTile = tile;
         lastDiscardSeat = seat;
         lastDrawnTile = -1;
+        lastDrawFromKong = false;
+        clearExtension();
         pendingSeats.clear();
         pendingClaims.clear();
 
@@ -260,7 +276,11 @@ public class GameTable {
 
     public synchronized void claim(int seat, ActionType type) {
         if (phase != GamePhase.WAITING_CLAIM) {
-            throw new BusinessException("当前不是碰杠胡响应阶段");
+            throw new BusinessException("当前不是碰杠响应阶段");
+        }
+        if (type == ActionType.HU) {
+            // 南陵麻将只能自摸，不能胡别人打出的牌
+            throw new BusinessException("南陵麻将不能胡别人打出的牌，只能自摸");
         }
         if (!pendingSeats.contains(seat)) {
             throw new BusinessException("你当前没有可执行的响应");
@@ -274,10 +294,6 @@ public class GameTable {
             pendingClaims.put(seat, type);
         }
 
-        if (type == ActionType.HU) {
-            resolveClaims();
-            return;
-        }
         if (pendingClaims.size() >= pendingSeats.size()) {
             resolveClaims();
         }
@@ -317,12 +333,93 @@ public class GameTable {
 
     public synchronized void selfHu(int seat) {
         requireTurn(seat);
-        WinResult winResult = WinChecker.check(
-                new WinRequest(hands[seat], melds[seat], config, true, wildcardVoided));
+        WinResult winResult = WinChecker.check(WinRequest.selfDraw(
+                hands[seat], melds[seat], config, wildcardVoided, lastDrawnTile, lastDrawFromKong));
         if (!winResult.isWin()) {
             throw new BusinessException("当前不能胡：" + winResult.getReason());
         }
         finish(seat, -1, winResult);
+    }
+
+    // ------------------------------------------------------------------
+    // 延时申请（三家都同意才生效）
+    // ------------------------------------------------------------------
+
+    public int getExtendSeat() {
+        return extendSeat;
+    }
+
+    public Set<Integer> getExtendApprovals() {
+        return Collections.unmodifiableSet(extendApprovals);
+    }
+
+    public boolean isExtensionPending() {
+        return extendSeat >= 0;
+    }
+
+    /**
+     * 申请延时：把当前剩余时间冻结，进入 60 秒投票窗口。
+     *
+     * <p>冻结而不是直接加时间，是为了「有人不同意」时能原样还回去，
+     * 不会因为发起投票反而白赚一段思考时间。</p>
+     */
+    public synchronized void requestExtension(int seat) {
+        if (phase == GamePhase.ENDED) {
+            throw new BusinessException("本局已结束，不需要延时");
+        }
+        if (extendSeat >= 0) {
+            throw new BusinessException("已经有一个延时申请在投票中");
+        }
+        if (phase == GamePhase.PLAYER_TURN && seat != currentSeat) {
+            throw new BusinessException("只能在自己出牌时申请延时");
+        }
+        if (phase == GamePhase.WAITING_CLAIM && !pendingSeats.contains(seat)) {
+            throw new BusinessException("现在轮不到你响应，不能申请延时");
+        }
+        long now = System.currentTimeMillis();
+        extendPausedMs = Math.max(0, deadlineAt - now);
+        extendSeat = seat;
+        extendApprovals.clear();
+        deadlineAt = now + EXTEND_VOTE_WINDOW_MS;
+    }
+
+    /** 其他三家投票：三家全同意才延长一个基础时长，任意一家不同意就恢复原剩余时间。 */
+    public synchronized void voteExtension(int seat, boolean agree) {
+        if (extendSeat < 0) {
+            throw new BusinessException("当前没有延时申请");
+        }
+        if (seat == extendSeat) {
+            throw new BusinessException("不能给自己的申请投票");
+        }
+        if (phase == GamePhase.ENDED) {
+            clearExtension();
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (!agree) {
+            deadlineAt = now + extendPausedMs;
+            clearExtension();
+            return;
+        }
+        extendApprovals.add(seat);
+        if (extendApprovals.size() >= 3) {
+            deadlineAt = now + extendPausedMs + baseTimeoutMs();
+            clearExtension();
+        }
+    }
+
+    /** 本阶段的基础思考时间：出牌看 turn-timeout，响应看 action-timeout。 */
+    private long baseTimeoutMs() {
+        int seconds = phase == GamePhase.WAITING_CLAIM
+                ? config.getActionTimeoutSeconds()
+                : config.getTurnTimeoutSeconds();
+        return seconds * 1000L;
+    }
+
+    private void clearExtension() {
+        extendSeat = -1;
+        extendApprovals.clear();
+        extendPausedMs = 0;
     }
 
     // ------------------------------------------------------------------
@@ -331,6 +428,7 @@ public class GameTable {
 
     /** 超时：响应阶段全部视为过；出牌阶段自动打出最后摸到的牌。 */
     public synchronized void onTimeout() {
+        clearExtension();
         if (phase == GamePhase.WAITING_CLAIM) {
             for (int seat : pendingSeats) {
                 pendingClaims.putIfAbsent(seat, ActionType.PASS);
@@ -356,12 +454,6 @@ public class GameTable {
 
     private void resolveClaims() {
         for (int seat : seatsAfter(lastDiscardSeat)) {
-            if (pendingClaims.get(seat) == ActionType.HU) {
-                doHu(seat, lastDiscardTile, false, lastDiscardSeat);
-                return;
-            }
-        }
-        for (int seat : seatsAfter(lastDiscardSeat)) {
             if (pendingClaims.get(seat) == ActionType.KONG_MING) {
                 doKongMing(seat, lastDiscardTile);
                 return;
@@ -385,6 +477,7 @@ public class GameTable {
         clearPending();
         currentSeat = seat;
         lastDrawnTile = -1;
+        lastDrawFromKong = false;
         phase = GamePhase.PLAYER_TURN;
         deadlineAt = System.currentTimeMillis() + config.getTurnTimeoutSeconds() * 1000L;
     }
@@ -399,20 +492,9 @@ public class GameTable {
         supplementaryDraw(seat);
     }
 
-    private void doHu(int seat, int tile, boolean selfDraw, int loserSeat) {
-        List<Integer> copy = new ArrayList<>(hands[seat]);
-        copy.add(tile);
-        WinResult winResult = WinChecker.check(
-                new WinRequest(copy, melds[seat], config, selfDraw, wildcardVoided));
-        if (!winResult.isWin()) {
-            throw new BusinessException("胡牌判定失败：" + winResult.getReason());
-        }
-        finish(seat, loserSeat, winResult);
-    }
-
     private void finish(int winnerSeat, int loserSeat, WinResult winResult) {
         this.result = new GameResult(false, winnerSeat, loserSeat, winResult.getFan(), winResult.getScore(),
-                winResult.getFlavorLabels(), winResult.getWinningHand());
+                winResult.getFlavors(), winResult.getWinningHand());
         this.phase = GamePhase.ENDED;
         this.pendingSeats.clear();
         this.pendingClaims.clear();
@@ -427,6 +509,7 @@ public class GameTable {
         hands[seat].add(tile);
         Collections.sort(hands[seat]);
         lastDrawnTile = tile;
+        lastDrawFromKong = true;
         phase = GamePhase.PLAYER_TURN;
         deadlineAt = System.currentTimeMillis() + config.getTurnTimeoutSeconds() * 1000L;
     }
@@ -442,6 +525,7 @@ public class GameTable {
         Collections.sort(hands[next]);
         currentSeat = next;
         lastDrawnTile = tile;
+        lastDrawFromKong = false;
         // 保留 lastDiscardTile 供前端展示“最新打出”，响应阶段已结束，不会误判为可碰杠
         phase = GamePhase.PLAYER_TURN;
         deadlineAt = System.currentTimeMillis() + config.getTurnTimeoutSeconds() * 1000L;
@@ -471,11 +555,7 @@ public class GameTable {
 
     private List<ActionType> claimsForTile(int seat, int tile) {
         List<ActionType> actions = new ArrayList<>();
-        List<Integer> copy = new ArrayList<>(hands[seat]);
-        copy.add(tile);
-        if (WinChecker.check(new WinRequest(copy, melds[seat], config, false, wildcardVoided)).isWin()) {
-            actions.add(ActionType.HU);
-        }
+        // 南陵麻将不允许胡别人打出的牌（无点炮），所以这里只判碰 / 明杠
         int count = Collections.frequency(hands[seat], tile);
         if (count >= 3) {
             actions.add(ActionType.KONG_MING);

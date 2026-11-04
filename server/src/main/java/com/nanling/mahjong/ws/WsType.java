@@ -23,6 +23,8 @@ public enum WsType {
     ROOM_STATE,
     GAME_START,
     GAME_ACTION,
+    /** 延时申请 / 对延时申请投票：{agree?} 不传 agree 表示发起申请 */
+    GAME_EXTEND,
     NEXT_ROUND,
     LEFT,
     ERROR,

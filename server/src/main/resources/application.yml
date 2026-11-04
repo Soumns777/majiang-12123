@@ -27,8 +27,9 @@ mahjong:
   game:
     action-timeout-seconds: 15      # 吃碰杠胡响应超时
     turn-timeout-seconds: 20        # 出牌超时
-    base-score: 1                   # 底分
+    base-score: 1                   # 底分：单家应付 = 牌型分 × 底分
     max-rounds: 8                   # 默认局数
+    start-beans: 20                 # 每人开局默认欢乐豆
   # 机器人：每个动作之间的「思考时间」，决定出牌节奏（毫秒）
   bot:
     think-ms: 1100

@@ -104,6 +104,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             case ROOM_BOT -> onRoomBot(session, data);
             case GAME_START -> onGameStart(session);
             case GAME_ACTION -> onGameAction(session, data);
+            case GAME_EXTEND -> onGameExtend(session, data);
             case NEXT_ROUND -> onNextRound(session);
             case PING -> WsSender.send(session, objectMapper, WsType.PONG.name(), Map.of());
             default -> throw new BusinessException("该消息类型不支持客户端发送: " + type);
@@ -193,10 +194,22 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     private void onRoomRule(WebSocketSession session, JsonNode data) throws Exception {
         String playerId = requirePlayerId(session);
         String roomId = requireRoomId(session);
-        if (data == null || !data.hasNonNull("voidWildcardOnDiscard")) {
-            throw new BusinessException("缺少 voidWildcardOnDiscard 参数");
+        if (data == null) {
+            throw new BusinessException("缺少规则参数");
         }
-        roomService.setVoidWildcardOnDiscard(roomId, playerId, data.get("voidWildcardOnDiscard").asBoolean());
+        // 一次可以只带其中一个字段：{voidWildcardOnDiscard:true} 或 {baseScore:2}
+        boolean handled = false;
+        if (data.hasNonNull("voidWildcardOnDiscard")) {
+            roomService.setVoidWildcardOnDiscard(roomId, playerId, data.get("voidWildcardOnDiscard").asBoolean());
+            handled = true;
+        }
+        if (data.hasNonNull("baseScore")) {
+            roomService.setBaseScore(roomId, playerId, data.get("baseScore").asInt());
+            handled = true;
+        }
+        if (!handled) {
+            throw new BusinessException("缺少规则参数");
+        }
     }
 
     /**
@@ -237,6 +250,21 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             tile = Tiles.fromCode(tileCode);
         }
         roomService.action(roomId, playerId, action, tile);
+    }
+
+    /**
+     * 延时申请 / 投票。
+     *
+     * <p>请求体：{@code {}} 表示发起申请；{@code {"agree": true|false}} 表示投票。</p>
+     */
+    private void onGameExtend(WebSocketSession session, JsonNode data) throws Exception {
+        String playerId = requirePlayerId(session);
+        String roomId = requireRoomId(session);
+        if (data == null || data.isNull() || !data.hasNonNull("agree")) {
+            roomService.requestExtension(roomId, playerId);
+            return;
+        }
+        roomService.voteExtension(roomId, playerId, data.get("agree").asBoolean());
     }
 
     private void onNextRound(WebSocketSession session) throws Exception {

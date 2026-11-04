@@ -6,6 +6,7 @@ import com.nanling.mahjong.api.dto.ViewMapper;
 import com.nanling.mahjong.bot.BotBrain;
 import com.nanling.mahjong.common.BusinessException;
 import com.nanling.mahjong.domain.game.ActionType;
+import com.nanling.mahjong.domain.game.BeanSettlement;
 import com.nanling.mahjong.domain.game.GamePhase;
 import com.nanling.mahjong.domain.game.GameResult;
 import com.nanling.mahjong.domain.rule.RuleConfig;
@@ -56,6 +57,8 @@ public class RoomService {
     private final int botThinkMs;
     /** 机器人碰牌概率，0 表示只胡不碰 */
     private final double botPongChance;
+    /** 每人开局默认欢乐豆 */
+    private final int startBeans;
 
     public RoomService(RoomRepository repository,
                        ViewMapper viewMapper,
@@ -66,7 +69,8 @@ public class RoomService {
                        @Value("${mahjong.game.turn-timeout-seconds:20}") int turnTimeoutSeconds,
                        @Value("${mahjong.room.idle-timeout-seconds:1800}") int idleTimeoutSeconds,
                        @Value("${mahjong.bot.think-ms:1100}") int botThinkMs,
-                       @Value("${mahjong.bot.pong-chance:0.5}") double botPongChance) {
+                       @Value("${mahjong.bot.pong-chance:0.5}") double botPongChance,
+                       @Value("${mahjong.game.start-beans:20}") int startBeans) {
         this.repository = repository;
         this.viewMapper = viewMapper;
         this.publisher = publisher;
@@ -77,6 +81,7 @@ public class RoomService {
         this.idleTimeoutSeconds = idleTimeoutSeconds;
         this.botThinkMs = botThinkMs;
         this.botPongChance = botPongChance;
+        this.startBeans = startBeans;
     }
 
     // ------------------------------------------------------------------
@@ -115,6 +120,7 @@ public class RoomService {
         Room room = new Room(generateRoomId(), profile.id(), config);
         Player owner = new Player(profile.id(), profile.nickname(), profile.avatar(), 0);
         owner.setOnline(true);
+        owner.setBeans(startBeans);
         room.getPlayers().add(owner);
         repository.save(room);
         publish(room.getId(), "created");
@@ -179,6 +185,7 @@ public class RoomService {
                 }
                 Player player = new Player(profile.id(), profile.nickname(), profile.avatar(), seat);
                 player.setOnline(true);
+                player.setBeans(startBeans);
                 room.getPlayers().add(player);
                 room.touch();
                 repository.save(room);
@@ -294,6 +301,32 @@ public class RoomService {
     }
 
     /**
+     * 房主调整底分。
+     *
+     * <p>底分是「单家应付欢乐豆」的乘数：{@code 应付 = 牌型分 × 底分}。
+     * 只在开局前可改，避免一局打到一半换价码。</p>
+     */
+    public Room setBaseScore(String roomId, String playerId, int baseScore) {
+        if (baseScore < 1 || baseScore > 10) {
+            throw new BusinessException("底分只能在 1 到 10 之间");
+        }
+        Room room = requireRoom(roomId);
+        synchronized (room) {
+            if (!room.getOwnerId().equals(playerId)) {
+                throw new BusinessException("只有房主可以修改底分");
+            }
+            if (room.getStatus() != RoomStatus.WAITING) {
+                throw new BusinessException("对局已开始，不能修改底分");
+            }
+            room.getRuleConfig().setBaseScore(baseScore);
+            room.touch();
+            repository.save(room);
+        }
+        publish(roomId, "rule");
+        return room;
+    }
+
+    /**
      * 房主往空座位上补机器人。
      *
      * <p>机器人始终「在线 + 已准备」，所以一个人也能凑齐 4 人开局；
@@ -317,8 +350,10 @@ public class RoomService {
                 if (seat < 0) {
                     break;
                 }
-                room.getPlayers().add(Player.bot(
-                        "bot-" + room.getId() + "-" + seat, BOT_NAMES[seat % BOT_NAMES.length], seat));
+                Player bot = Player.bot(
+                        "bot-" + room.getId() + "-" + seat, BOT_NAMES[seat % BOT_NAMES.length], seat);
+                bot.setBeans(startBeans);
+                room.getPlayers().add(bot);
                 added++;
             }
             if (added == 0) {
@@ -328,6 +363,36 @@ public class RoomService {
             repository.save(room);
         }
         publish(roomId, "bot");
+        return room;
+    }
+
+    /**
+     * 申请延时：把当前剩余思考时间冻结，等另外三家投票。
+     *
+     * <p>三家全同意才把本阶段时间延长一个基础时长；任意一家不同意就原样还回去。</p>
+     */
+    public Room requestExtension(String roomId, String playerId) {
+        Room room = requireRoom(roomId);
+        synchronized (room) {
+            GameTable table = requirePlayingTable(room);
+            table.requestExtension(requireSeat(room, playerId));
+            room.touch();
+            repository.save(room);
+        }
+        publish(roomId, "extend");
+        return room;
+    }
+
+    /** 对延时申请投票。 */
+    public Room voteExtension(String roomId, String playerId, boolean agree) {
+        Room room = requireRoom(roomId);
+        synchronized (room) {
+            GameTable table = requirePlayingTable(room);
+            table.voteExtension(requireSeat(room, playerId), agree);
+            room.touch();
+            repository.save(room);
+        }
+        publish(roomId, "extend");
         return room;
     }
 
@@ -388,12 +453,11 @@ public class RoomService {
                     table.selfKongBu(seat, tile);
                 }
                 case HU -> {
-                    if (table.getPhase() == GamePhase.WAITING_CLAIM
-                            && table.getPendingSeats().contains(seat)) {
-                        table.claim(seat, ActionType.HU);
-                    } else {
-                        table.selfHu(seat);
+                    // 南陵麻将只能自摸胡，响应阶段不允许胡别人的牌
+                    if (table.getPhase() == GamePhase.WAITING_CLAIM) {
+                        throw new BusinessException("南陵麻将不能胡别人打出的牌，只能自摸");
                     }
+                    table.selfHu(seat);
                 }
                 case PASS -> table.pass(seat);
                 default -> throw new BusinessException("不支持的操作: " + type);
@@ -455,26 +519,41 @@ public class RoomService {
             return;
         }
         if (!result.drawGame()) {
-            Player winner = room.findBySeat(result.winnerSeat())
-                    .orElseThrow(() -> new BusinessException("结算失败：找不到胡牌玩家"));
-            int score = result.score();
-            if (result.loserSeat() >= 0) {
-                Player loser = room.findBySeat(result.loserSeat())
-                        .orElseThrow(() -> new BusinessException("结算失败：找不到点炮玩家"));
-                winner.addScore(score);
-                loser.addScore(-score);
-            } else {
-                for (Player player : room.getPlayers()) {
-                    if (player.getSeat() != winner.getSeat()) {
-                        player.addScore(-score);
-                        winner.addScore(score);
-                    }
-                }
-            }
+            applySettlement(room.getPlayers(), result, table.getDealerSeat());
         }
         room.setSettledRound(room.getRound());
         if (room.getRound() >= room.getRuleConfig().getMaxRounds()) {
             room.setStatus(RoomStatus.FINISHED);
+        }
+    }
+
+    /**
+     * 欢乐豆结算（纯计算，方便单测）。
+     *
+     * <p>南陵麻将只能自摸，所以是三家付：赢家 +3×单家分，每家 -单家分。
+     * 头家再单独 ±1（头家胡牌多 +1，头家输牌多扣 1，其他玩家不受影响）。</p>
+     *
+     * @param players    四家（含机器人）
+     * @param result     本局结果
+     * @param dealerSeat 庄家座位
+     */
+    static void applySettlement(List<Player> players, GameResult result, int dealerSeat) {
+        if (result == null || result.drawGame()) {
+            return;
+        }
+        int fan = result.fan();
+        int score = result.score();
+        Player winner = players.stream()
+                .filter(player -> player.getSeat() == result.winnerSeat())
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("结算失败：找不到胡牌玩家"));
+        for (Player player : players) {
+            if (player.getSeat() == winner.getSeat()) {
+                player.addScore(fan);
+            } else {
+                player.addScore(-fan);
+            }
+            player.addBeans(BeanSettlement.deltaFor(player.getSeat(), result.winnerSeat(), dealerSeat, score));
         }
     }
 
@@ -605,6 +684,14 @@ public class RoomService {
             return;
         }
         GameTable snapshot = room.getTable();
+        // 有延时申请在投票时，先让机器人把票投掉：单人房里只有机器人能「同意」，
+        // 否则真人申请延时后永远凑不齐三票，只能干等到投票窗口结束。
+        if (snapshot != null && snapshot.isExtensionPending()) {
+            if (botVoteExtension(room, now)) {
+                publish(room.getId(), "extend");
+            }
+            return;
+        }
         int seat = nextBotSeat(room, snapshot);
         if (seat < 0) {
             return;
@@ -638,9 +725,44 @@ public class RoomService {
         }
     }
 
+    /**
+     * 机器人对延时申请投票：每个 tick 只投一票，和出牌一样是「一个一个来」。
+     *
+     * <p>机器人不会拒绝——它们的意义是陪真人练手，卡着时间对谁都没好处。</p>
+     *
+     * @return 是否真的投出了一票（用于决定要不要广播）
+     */
+    private boolean botVoteExtension(Room room, long now) {
+        boolean voted = false;
+        synchronized (room) {
+            GameTable table = room.getTable();
+            if (table == null || !table.isExtensionPending()) {
+                return false;
+            }
+            int askSeat = table.getExtendSeat();
+            for (Player player : room.getPlayers()) {
+                int seat = player.getSeat();
+                if (seat == askSeat || !player.isBot() || table.getExtendApprovals().contains(seat)) {
+                    continue;
+                }
+                try {
+                    table.voteExtension(seat, true);
+                    voted = true;
+                } catch (BusinessException ex) {
+                    log.warn("bot extend vote failed, roomId={}, seat={}, msg={}",
+                            room.getId(), seat, ex.getMessage());
+                }
+                room.setBotActAt(now + botThinkMs);
+                room.touch();
+                repository.save(room);
+                break;
+            }
+        }
+        return voted;
+    }
+
     /** 当前轮到谁「该机器人动」，没有就返回 -1。 */
-    private int nextBotSeat(Room room, GameTable table) {
-        if (table == null) {
+    private int nextBotSeat(Room room, GameTable table) {        if (table == null) {
             return -1;
         }
         if (table.getPhase() == GamePhase.PLAYER_TURN) {
@@ -694,6 +816,24 @@ public class RoomService {
         }
         return room.findPlayer(playerId)
                 .orElseThrow(() -> new BusinessException("你不在这个房间里"));
+    }
+
+    private int requireSeat(Room room, String playerId) {
+        return requirePlayer(room, playerId).getSeat();
+    }
+
+    private GameTable requirePlayingTable(Room room) {
+        if (room.getStatus() != RoomStatus.PLAYING) {
+            throw new BusinessException("当前不在对局中");
+        }
+        GameTable table = room.getTable();
+        if (table == null) {
+            throw new BusinessException("牌桌尚未初始化");
+        }
+        if (table.getPhase() == GamePhase.ENDED) {
+            throw new BusinessException("本局已结束");
+        }
+        return table;
     }
 
     private void requireTile(Integer tile) {

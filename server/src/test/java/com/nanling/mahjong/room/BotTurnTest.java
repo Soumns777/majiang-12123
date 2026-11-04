@@ -38,7 +38,7 @@ class BotTurnTest {
         ApplicationEventPublisher noop = event -> { };
         // think-ms=0 + 碰牌概率=0：每次 tick 都能推进一个机器人，且行为完全确定
         service = new RoomService(new InMemoryRoomRepository(), new ViewMapper(), noop,
-                1, 8, 15, 20, 1800, 0, 0.0);
+                1, 8, 15, 20, 1800, 0, 0.0, 20);
         room = service.createRoom(OWNER, "房主", "", null);
     }
 
@@ -108,10 +108,12 @@ class BotTurnTest {
 
         int previous = actionCount(table);
         int advanced = 0;
+        boolean ended = false;
         for (int i = 0; i < 8; i++) {
             service.tick();
             GameTable current = room.getTable();
             if (current.getPhase() == GamePhase.ENDED) {
+                ended = true;
                 break;
             }
             int now = actionCount(current);
@@ -123,7 +125,9 @@ class BotTurnTest {
             }
             previous = now;
         }
-        assertTrue(advanced >= 3, "8 次 tick 只推进了 " + advanced + " 步，机器人没有在打牌");
+        // 一局可能在中途结束（机器人自摸），结束时只要求确实推进过
+        assertTrue(advanced >= (ended ? 1 : 3),
+                "8 次 tick 只推进了 " + advanced + " 步，机器人没有在打牌");
     }
 
     @Test
@@ -140,6 +144,30 @@ class BotTurnTest {
         assertEquals(before, actionCount(room.getTable()));
         assertEquals(0, room.getTable().getCurrentSeat());
         assertFalse(room.getTable().isTurn(1));
+    }
+
+    @Test
+    @DisplayName("真人申请延时后，三家机器人逐个同意，时间被延长")
+    void botsApproveExtension() {
+        service.addBots(room.getId(), OWNER, 3);
+        service.setReady(room.getId(), OWNER, true);
+        service.startGame(room.getId(), OWNER);
+
+        GameTable table = room.getTable();
+        long before = table.getDeadlineAt();
+        service.requestExtension(room.getId(), OWNER);
+        assertTrue(table.isExtensionPending());
+
+        // 一次 tick 只投一票，和出牌一样是依次来的
+        service.tick();
+        assertEquals(1, table.getExtendApprovals().size());
+        service.tick();
+        assertEquals(2, table.getExtendApprovals().size());
+        service.tick();
+
+        assertFalse(table.isExtensionPending(), "三票齐了应该结束投票");
+        assertTrue(table.getDeadlineAt() > before + 10_000,
+                "全同意后应该延长一个基础思考时间，实际 deadline=" + table.getDeadlineAt());
     }
 
     /** 出牌堆张数 + 副露组数，用来衡量「动作推进了多少步」。 */

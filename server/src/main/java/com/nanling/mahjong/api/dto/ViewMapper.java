@@ -1,8 +1,10 @@
 package com.nanling.mahjong.api.dto;
 
 import com.nanling.mahjong.domain.game.ActionType;
+import com.nanling.mahjong.domain.game.BeanSettlement;
 import com.nanling.mahjong.domain.game.GamePhase;
 import com.nanling.mahjong.domain.game.GameResult;
+import com.nanling.mahjong.domain.rule.Flavor;
 import com.nanling.mahjong.domain.rule.Meld;
 import com.nanling.mahjong.domain.rule.RuleConfig;
 import com.nanling.mahjong.domain.tile.Tiles;
@@ -45,6 +47,7 @@ public class ViewMapper {
                 room.getStatus().name(),
                 room.getRound(),
                 room.getRuleConfig().getMaxRounds(),
+                room.getRuleConfig().getBaseScore(),
                 table == null ? GamePhase.WAITING.name() : table.getPhase().name(),
                 table == null ? -1 : table.getCurrentSeat(),
                 table == null ? 0 : table.getRemainingTiles(),
@@ -58,13 +61,25 @@ public class ViewMapper {
                 System.currentTimeMillis(),
                 spectator,
                 room.spectatorNames(),
+                toExtendView(table),
                 playerViews,
-                toResultView(table == null ? null : table.getResult())
+                toResultView(table, room.getRuleConfig().getBaseScore())
         );
     }
 
+    /** 延时申请：没有申请就不下发（Jackson 配了 non_null，客户端收到的是缺省字段）。 */
+    private TableView.ExtendView toExtendView(GameTable table) {
+        if (table == null || !table.isExtensionPending()) {
+            return null;
+        }
+        return new TableView.ExtendView(
+                table.getExtendSeat(),
+                new ArrayList<>(table.getExtendApprovals()),
+                3);
+    }
+
     private PlayerView emptySeat(int seat) {
-        return new PlayerView(seat, "", "等待加入", "", 0, false, false, false, false, false, 0,
+        return new PlayerView(seat, "", "等待加入", "", 0, 0, false, false, false, false, false, 0,
                 List.of(), List.of(), List.of(), List.of());
     }
 
@@ -102,8 +117,8 @@ public class ViewMapper {
         }
 
         return new PlayerView(seat, player.getId(), player.getNickname(), player.getAvatar(),
-                player.getScore(), player.isReady(), player.isOnline(), player.isBot(), dealer, current,
-                handCount, hand, melds, discards, actions);
+                player.getScore(), player.getBeans(), player.isReady(), player.isOnline(), player.isBot(),
+                dealer, current, handCount, hand, melds, discards, actions);
     }
 
     private List<ActionType> availableActions(GameTable table, int seat) {
@@ -129,14 +144,27 @@ public class ViewMapper {
         return new MeldView(meld.getType().name(), tiles, meld.getFromSeat(), visible);
     }
 
-    private ResultView toResultView(GameResult result) {
+    private ResultView toResultView(GameTable table, int baseScore) {
+        GameResult result = table == null ? null : table.getResult();
         if (result == null) {
             return null;
         }
         List<String> hand = new ArrayList<>();
         result.winningHand().forEach(tile -> hand.add(Tiles.code(tile)));
+        List<ResultView.FlavorItem> breakdown = new ArrayList<>();
+        for (Flavor flavor : result.flavors()) {
+            breakdown.add(new ResultView.FlavorItem(flavor.getLabel(), flavor.getFan()));
+        }
+        List<ResultView.SeatBeans> deltas = new ArrayList<>(4);
+        if (!result.drawGame()) {
+            int dealerSeat = table.getDealerSeat();
+            for (int seat = 0; seat < 4; seat++) {
+                deltas.add(new ResultView.SeatBeans(seat,
+                        BeanSettlement.deltaFor(seat, result.winnerSeat(), dealerSeat, result.score())));
+            }
+        }
         return new ResultView(result.drawGame(), result.winnerSeat(), result.loserSeat(),
-                result.fan(), result.score(), result.flavors(), hand);
+                result.fan(), result.score(), baseScore, result.flavorLabels(), breakdown, deltas, hand);
     }
 
     private String wildcardCode(GameTable table) {

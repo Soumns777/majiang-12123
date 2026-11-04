@@ -94,7 +94,8 @@ public final class WinChecker {
         Evaluation best = null;
         boolean anyLackingSuit = false;
         for (Decomposition decomposition : decompositions) {
-            Evaluation evaluation = evaluate(decomposition, melds, config, request.selfDraw(), needsFlavor);
+            Evaluation evaluation = evaluate(decomposition, melds, config, request.selfDraw(), needsFlavor,
+                    request.winningTile(), request.kongKai());
             if (evaluation.lackingSuit()) {
                 anyLackingSuit = true;
             }
@@ -199,7 +200,7 @@ public final class WinChecker {
     }
 
     private static Evaluation evaluate(Decomposition decomposition, List<Meld> melds, RuleConfig config,
-                                      boolean selfDraw, boolean needsFlavor) {
+                                      boolean selfDraw, boolean needsFlavor, int winningTile, boolean kongKai) {
         List<Integer> tiles = new ArrayList<>(decomposition.melds());
         int pairTile = decomposition.pairTile() >= 0 ? decomposition.pairTile() : neutralTile(tiles);
         tiles.add(pairTile);
@@ -244,8 +245,13 @@ public final class WinChecker {
             return Evaluation.invalid(true);
         }
 
+        // 单钓：胡的那张牌正好凑成将牌（只开一张）
+        boolean danDiao = winningTile >= 0 && pairTile == winningTile;
+
+        // 计分：基础 1 分必拿，其余牌型分叠加（清一色与混一色互斥）
         List<Flavor> flavors = new ArrayList<>();
-        int fan = 0;
+        int fan = Flavor.PING_HU.getFan();
+        flavors.add(Flavor.PING_HU);
         if (qingYiSe) {
             flavors.add(Flavor.QING_YI_SE);
             fan += Flavor.QING_YI_SE.getFan();
@@ -254,8 +260,8 @@ public final class WinChecker {
             fan += Flavor.HUN_YI_SE.getFan();
         }
         if (jiuZhi) {
+            // 9 支是基础分的来源，本身不加分，只作说明
             flavors.add(Flavor.JIU_ZHI);
-            fan += Flavor.JIU_ZHI.getFan();
         }
         if (shiYiZhi) {
             flavors.add(Flavor.SHI_YI_ZHI);
@@ -265,18 +271,18 @@ public final class WinChecker {
             flavors.add(Flavor.PAO_FENG);
             fan += Flavor.PAO_FENG.getFan();
         }
-        if (selfDraw) {
-            flavors.add(Flavor.ZI_MO);
-            fan += Flavor.ZI_MO.getFan();
+        if (danDiao) {
+            flavors.add(Flavor.DAN_DIAO);
+            fan += Flavor.DAN_DIAO.getFan();
+        }
+        if (kongKai) {
+            flavors.add(Flavor.KONG_KAI);
+            fan += Flavor.KONG_KAI.getFan();
         }
         long kongCount = melds.stream().filter(m -> m.getType().isKong()).count();
         if (kongCount > 0) {
             flavors.add(Flavor.KONG);
             fan += (int) kongCount * Flavor.KONG.getFan();
-        }
-        if (flavors.isEmpty()) {
-            flavors.add(Flavor.PING_HU);
-            fan += Flavor.PING_HU.getFan();
         }
 
         List<Integer> hand = new ArrayList<>(tiles);

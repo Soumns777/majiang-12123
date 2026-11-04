@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -111,7 +112,8 @@ class WinCheckerTest {
         WinResult result = check(hand, List.of(), null);
 
         assertTrue(result.isWin(), result.getReason());
-        assertTrue(result.getFlavorLabels().contains("平胡"));
+        assertTrue(result.getFlavorLabels().contains("基础"));
+        assertEquals(1, result.getFan(), "没有其他牌型分时只拿基础 1 分");
     }
 
     @Test
@@ -187,7 +189,8 @@ class WinCheckerTest {
         WinResult result = WinChecker.check(new WinRequest(hand, List.of(), config, true));
 
         assertTrue(result.isWin(), result.getReason());
-        assertTrue(result.getFlavorLabels().contains("自摸"));
+        // 自摸本身不再单独加分（PDF 里没有自摸项），只拿基础 1 分
+        assertEquals(1, result.getFan());
     }
 
     // ------------------------------------------------------------------
@@ -252,6 +255,6 @@ class WinCheckerTest {
         assertTrue(voided.isWin(), voided.getReason());
         assertFalse(voided.getFlavorLabels().contains("跑风"), "作废后不应再有跑风");
         assertFalse(voided.isPairUsedJoker());
-        assertTrue(voided.getFlavorLabels().contains("平胡"), "没有癞子可用，按裸胡计");
+        assertTrue(voided.getFlavorLabels().contains("基础"), "没有癞子可用，按裸胡计");
     }
 }

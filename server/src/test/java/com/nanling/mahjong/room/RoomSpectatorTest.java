@@ -33,7 +33,7 @@ class RoomSpectatorTest {
     void setUp() {
         ApplicationEventPublisher noop = event -> { };
         service = new RoomService(new InMemoryRoomRepository(), new ViewMapper(), noop,
-                1, 8, 15, 20, 1800, 0, 0.0);
+                1, 8, 15, 20, 1800, 0, 0.0, 20);
         room = service.createRoom(SEATS[0], "房主", "", null);
         for (int i = 1; i < SEATS.length; i++) {
             service.joinRoom(room.getId(), SEATS[i], "玩家" + i, "");
