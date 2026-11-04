@@ -10,6 +10,9 @@ import { View } from '@tarojs/components'
  * <p>虚拟画布取 100 × 144（与牌面 1 : 1.44 的比例对齐）。
  * 百分比高度是相对容器高度的，所以横向尺寸除以 W、纵向尺寸除以 H，
  * 这样正方形元素在任意尺寸的牌上都不会被拉成椭圆。</p>
+ *
+ * <p>配色按市面常见牌面：筒是「彩环 + 白圈 + 实心点」，一筒为整幅团花；
+ * 条是竹节，五条中心、七条首张、九条为红色，其余绿色。</p>
  */
 
 const W = 100
@@ -29,148 +32,174 @@ const rect = (x: number, y: number, w: number, h: number) => ({
 
 const circle = (cx: number, cy: number, r: number) => rect(cx - r, cy - r, r * 2, r * 2)
 
-/** 筒子：圆心 x / y 与半径，按市面上常见的点位排布 */
-const DOTS: Record<number, [number, number, number][]> = {
-  1: [[50, 72, 17]],
+type Tone = 'blue' | 'green' | 'red'
+
+interface Dot {
+  cx: number
+  cy: number
+  r: number
+  tone: Tone
+}
+
+/**
+ * 筒子点位与配色。
+ *
+ * 参考常见牌面：二筒蓝上绿下、三筒蓝红绿斜排、四筒蓝绿对角、
+ * 五筒四角蓝中心红、六筒红绿相间、七筒绿三红四、八筒全蓝、九筒红绿相间。
+ */
+const DOTS: Record<number, Dot[]> = {
+  1: [{ cx: 50, cy: 72, r: 21, tone: 'blue' }],
   2: [
-    [50, 44, 13],
-    [50, 100, 13]
+    { cx: 50, cy: 44, r: 15, tone: 'blue' },
+    { cx: 50, cy: 100, r: 15, tone: 'green' }
   ],
   3: [
-    [28, 32, 11],
-    [50, 72, 11],
-    [72, 112, 11]
+    { cx: 28, cy: 32, r: 12, tone: 'blue' },
+    { cx: 50, cy: 72, r: 12, tone: 'red' },
+    { cx: 72, cy: 112, r: 12, tone: 'green' }
   ],
   4: [
-    [32, 42, 11],
-    [68, 42, 11],
-    [32, 102, 11],
-    [68, 102, 11]
+    { cx: 32, cy: 42, r: 12, tone: 'blue' },
+    { cx: 68, cy: 42, r: 12, tone: 'green' },
+    { cx: 32, cy: 102, r: 12, tone: 'green' },
+    { cx: 68, cy: 102, r: 12, tone: 'blue' }
   ],
   5: [
-    [30, 38, 10],
-    [70, 38, 10],
-    [50, 72, 10],
-    [30, 106, 10],
-    [70, 106, 10]
+    { cx: 29, cy: 36, r: 11, tone: 'blue' },
+    { cx: 71, cy: 36, r: 11, tone: 'blue' },
+    { cx: 50, cy: 72, r: 11, tone: 'red' },
+    { cx: 29, cy: 108, r: 11, tone: 'blue' },
+    { cx: 71, cy: 108, r: 11, tone: 'blue' }
   ],
   6: [
-    [32, 30, 10],
-    [68, 30, 10],
-    [32, 72, 10],
-    [68, 72, 10],
-    [32, 114, 10],
-    [68, 114, 10]
+    { cx: 32, cy: 28, r: 11, tone: 'red' },
+    { cx: 68, cy: 28, r: 11, tone: 'red' },
+    { cx: 32, cy: 72, r: 11, tone: 'green' },
+    { cx: 68, cy: 72, r: 11, tone: 'green' },
+    { cx: 32, cy: 116, r: 11, tone: 'red' },
+    { cx: 68, cy: 116, r: 11, tone: 'red' }
   ],
   7: [
-    [50, 22, 8.5],
-    [28, 52, 8.5],
-    [72, 52, 8.5],
-    [28, 92, 8.5],
-    [72, 92, 8.5],
-    [28, 126, 8.5],
-    [72, 126, 8.5]
+    { cx: 50, cy: 20, r: 9, tone: 'green' },
+    { cx: 28, cy: 50, r: 9, tone: 'green' },
+    { cx: 72, cy: 50, r: 9, tone: 'green' },
+    { cx: 28, cy: 88, r: 9, tone: 'red' },
+    { cx: 72, cy: 88, r: 9, tone: 'red' },
+    { cx: 28, cy: 124, r: 9, tone: 'red' },
+    { cx: 72, cy: 124, r: 9, tone: 'red' }
   ],
   8: [
-    [32, 24, 8.5],
-    [68, 24, 8.5],
-    [32, 56, 8.5],
-    [68, 56, 8.5],
-    [32, 88, 8.5],
-    [68, 88, 8.5],
-    [32, 120, 8.5],
-    [68, 120, 8.5]
+    { cx: 32, cy: 22, r: 9, tone: 'blue' },
+    { cx: 68, cy: 22, r: 9, tone: 'blue' },
+    { cx: 32, cy: 55, r: 9, tone: 'blue' },
+    { cx: 68, cy: 55, r: 9, tone: 'blue' },
+    { cx: 32, cy: 89, r: 9, tone: 'blue' },
+    { cx: 68, cy: 89, r: 9, tone: 'blue' },
+    { cx: 32, cy: 122, r: 9, tone: 'blue' },
+    { cx: 68, cy: 122, r: 9, tone: 'blue' }
   ],
   9: [
-    [28, 26, 8],
-    [50, 26, 8],
-    [72, 26, 8],
-    [28, 72, 8],
-    [50, 72, 8],
-    [72, 72, 8],
-    [28, 118, 8],
-    [50, 118, 8],
-    [72, 118, 8]
+    { cx: 28, cy: 26, r: 8.5, tone: 'red' },
+    { cx: 50, cy: 26, r: 8.5, tone: 'green' },
+    { cx: 72, cy: 26, r: 8.5, tone: 'red' },
+    { cx: 28, cy: 72, r: 8.5, tone: 'green' },
+    { cx: 50, cy: 72, r: 8.5, tone: 'red' },
+    { cx: 72, cy: 72, r: 8.5, tone: 'green' },
+    { cx: 28, cy: 118, r: 8.5, tone: 'red' },
+    { cx: 50, cy: 118, r: 8.5, tone: 'green' },
+    { cx: 72, cy: 118, r: 8.5, tone: 'red' }
   ]
 }
 
-/** 条子：竹节的中心点与宽高（1 条单独画鸟） */
-const STICKS: Record<number, [number, number, number, number][]> = {
+interface Stick {
+  cx: number
+  cy: number
+  w: number
+  h: number
+  tone: Tone
+}
+
+/**
+ * 条子（竹节）点位。一条单独画鸟，从二条开始排。
+ *
+ * 常见牌面：五条中间一根红、七条顶上一根红、九条红绿相间。
+ */
+const STICKS: Record<number, Stick[]> = {
   2: [
-    [33, 72, 13, 74],
-    [67, 72, 13, 74]
+    { cx: 33, cy: 72, w: 15, h: 78, tone: 'green' },
+    { cx: 67, cy: 72, w: 15, h: 78, tone: 'green' }
   ],
   3: [
-    [50, 34, 12, 48],
-    [32, 108, 12, 48],
-    [68, 108, 12, 48]
+    { cx: 50, cy: 36, w: 14, h: 52, tone: 'green' },
+    { cx: 32, cy: 106, w: 14, h: 52, tone: 'green' },
+    { cx: 68, cy: 106, w: 14, h: 52, tone: 'green' }
   ],
   4: [
-    [32, 42, 13, 50],
-    [68, 42, 13, 50],
-    [32, 102, 13, 50],
-    [68, 102, 13, 50]
+    { cx: 32, cy: 44, w: 15, h: 54, tone: 'green' },
+    { cx: 68, cy: 44, w: 15, h: 54, tone: 'green' },
+    { cx: 32, cy: 100, w: 15, h: 54, tone: 'green' },
+    { cx: 68, cy: 100, w: 15, h: 54, tone: 'green' }
   ],
   5: [
-    [28, 34, 12, 42],
-    [72, 34, 12, 42],
-    [50, 72, 12, 42],
-    [28, 110, 12, 42],
-    [72, 110, 12, 42]
+    { cx: 27, cy: 36, w: 14, h: 46, tone: 'green' },
+    { cx: 73, cy: 36, w: 14, h: 46, tone: 'green' },
+    { cx: 50, cy: 72, w: 14, h: 46, tone: 'red' },
+    { cx: 27, cy: 108, w: 14, h: 46, tone: 'green' },
+    { cx: 73, cy: 108, w: 14, h: 46, tone: 'green' }
   ],
   6: [
-    [32, 28, 12, 40],
-    [68, 28, 12, 40],
-    [32, 72, 12, 40],
-    [68, 72, 12, 40],
-    [32, 116, 12, 40],
-    [68, 116, 12, 40]
+    { cx: 32, cy: 28, w: 14, h: 44, tone: 'green' },
+    { cx: 68, cy: 28, w: 14, h: 44, tone: 'green' },
+    { cx: 32, cy: 72, w: 14, h: 44, tone: 'green' },
+    { cx: 68, cy: 72, w: 14, h: 44, tone: 'green' },
+    { cx: 32, cy: 116, w: 14, h: 44, tone: 'green' },
+    { cx: 68, cy: 116, w: 14, h: 44, tone: 'green' }
   ],
   7: [
-    [50, 20, 11, 34],
-    [26, 62, 11, 34],
-    [50, 62, 11, 34],
-    [74, 62, 11, 34],
-    [26, 112, 11, 34],
-    [50, 112, 11, 34],
-    [74, 112, 11, 34]
+    { cx: 50, cy: 20, w: 13, h: 36, tone: 'red' },
+    { cx: 25, cy: 62, w: 13, h: 38, tone: 'green' },
+    { cx: 50, cy: 62, w: 13, h: 38, tone: 'green' },
+    { cx: 75, cy: 62, w: 13, h: 38, tone: 'green' },
+    { cx: 25, cy: 112, w: 13, h: 38, tone: 'green' },
+    { cx: 50, cy: 112, w: 13, h: 38, tone: 'green' },
+    { cx: 75, cy: 112, w: 13, h: 38, tone: 'green' }
   ],
   8: [
-    [32, 20, 12, 32],
-    [68, 20, 12, 32],
-    [32, 55, 12, 32],
-    [68, 55, 12, 32],
-    [32, 90, 12, 32],
-    [68, 90, 12, 32],
-    [32, 125, 12, 32],
-    [68, 125, 12, 32]
+    { cx: 32, cy: 22, w: 13, h: 32, tone: 'green' },
+    { cx: 68, cy: 22, w: 13, h: 32, tone: 'green' },
+    { cx: 32, cy: 56, w: 13, h: 32, tone: 'green' },
+    { cx: 68, cy: 56, w: 13, h: 32, tone: 'green' },
+    { cx: 32, cy: 90, w: 13, h: 32, tone: 'green' },
+    { cx: 68, cy: 90, w: 13, h: 32, tone: 'green' },
+    { cx: 32, cy: 124, w: 13, h: 32, tone: 'green' },
+    { cx: 68, cy: 124, w: 13, h: 32, tone: 'green' }
   ],
   9: [
-    [26, 26, 11, 38],
-    [50, 26, 11, 38],
-    [74, 26, 11, 38],
-    [26, 72, 11, 38],
-    [50, 72, 11, 38],
-    [74, 72, 11, 38],
-    [26, 118, 11, 38],
-    [50, 118, 11, 38],
-    [74, 118, 11, 38]
+    { cx: 26, cy: 26, w: 12, h: 38, tone: 'red' },
+    { cx: 50, cy: 26, w: 12, h: 38, tone: 'green' },
+    { cx: 74, cy: 26, w: 12, h: 38, tone: 'red' },
+    { cx: 26, cy: 72, w: 12, h: 38, tone: 'green' },
+    { cx: 50, cy: 72, w: 12, h: 38, tone: 'red' },
+    { cx: 74, cy: 72, w: 12, h: 38, tone: 'green' },
+    { cx: 26, cy: 118, w: 12, h: 38, tone: 'red' },
+    { cx: 50, cy: 118, w: 12, h: 38, tone: 'green' },
+    { cx: 74, cy: 118, w: 12, h: 38, tone: 'red' }
   ]
 }
 
-/** 1 条：幺鸡（简化的鸟形，绿身红喙） */
+/** 一条：幺鸡（绿身红喙红爪，白圈黑眼） */
 function Bird() {
   return (
     <View className="mj-face">
-      <View className="mj-bird__tail" style={rect(6, 56, 30, 11)} />
-      <View className="mj-bird__tail" style={rect(10, 74, 26, 10)} />
-      <View className="mj-bird__body" style={rect(24, 44, 46, 44)} />
-      <View className="mj-bird__wing" style={rect(34, 56, 26, 20)} />
-      <View className="mj-bird__head" style={rect(56, 24, 26, 26)} />
-      <View className="mj-bird__beak" style={rect(80, 34, 12, 9)} />
-      <View className="mj-bird__eye" style={rect(66, 33, 5, 5)} />
-      <View className="mj-bird__foot" style={rect(38, 92, 4, 20)} />
-      <View className="mj-bird__foot" style={rect(50, 92, 4, 20)} />
+      <View className="mj-bird__tail" style={rect(4, 52, 34, 12)} />
+      <View className="mj-bird__tail" style={rect(8, 72, 30, 11)} />
+      <View className="mj-bird__body" style={rect(22, 40, 48, 48)} />
+      <View className="mj-bird__wing" style={rect(32, 52, 28, 24)} />
+      <View className="mj-bird__head" style={rect(54, 20, 28, 28)} />
+      <View className="mj-bird__beak" style={rect(80, 31, 14, 9)} />
+      <View className="mj-bird__eye" style={rect(64, 29, 8, 8)} />
+      <View className="mj-bird__foot" style={rect(36, 88, 5, 24)} />
+      <View className="mj-bird__foot" style={rect(50, 88, 5, 24)} />
     </View>
   )
 }
@@ -187,11 +216,11 @@ export default function TilePattern({ suit, rank }: TilePatternProps) {
     const dots = DOTS[rank] ?? []
     return (
       <View className="mj-face">
-        {dots.map(([cx, cy, r], index) => (
+        {dots.map((dot, index) => (
           <View
             key={index}
-            className={`mj-dot ${rank === 1 ? 'mj-dot--big' : ''}`}
-            style={circle(cx, cy, r)}
+            className={`mj-dot mj-dot--${dot.tone} ${rank === 1 ? 'mj-dot--big' : ''}`}
+            style={circle(dot.cx, dot.cy, dot.r)}
           />
         ))}
       </View>
@@ -205,8 +234,12 @@ export default function TilePattern({ suit, rank }: TilePatternProps) {
     const sticks = STICKS[rank] ?? []
     return (
       <View className="mj-face">
-        {sticks.map(([cx, cy, w, h], index) => (
-          <View key={index} className="mj-stick" style={rect(cx - w / 2, cy - h / 2, w, h)} />
+        {sticks.map((stick, index) => (
+          <View
+            key={index}
+            className={`mj-stick mj-stick--${stick.tone}`}
+            style={rect(stick.cx - stick.w / 2, stick.cy - stick.h / 2, stick.w, stick.h)}
+          />
         ))}
       </View>
     )

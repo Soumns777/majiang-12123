@@ -35,6 +35,7 @@ export default function PlayerSeat({
           <View className="seat__name">
             <Text className="seat__name-text">{player.nickname || '空位'}</Text>
             {player.dealer && <Text className="seat__tag">庄</Text>}
+            {player.bot && <Text className="seat__tag seat__tag--bot">机器人</Text>}
             {!player.online && player.playerId && <Text className="seat__tag seat__tag--off">离线</Text>}
           </View>
           <Text className="seat__score">{player.score > 0 ? `+${player.score}` : player.score}</Text>

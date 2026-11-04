@@ -5,9 +5,9 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: linear-gradient(180deg, #fffdf6 0%, #f3ecd8 62%, #e2d7bc 100%);
+  background: linear-gradient(180deg, #fffefb 0%, #fdfaf1 62%, #f2ecdc 100%);
   border-radius: 10rpx;
-  border: 2rpx solid #cfc2a2;
+  border: 2rpx solid #d8cdb2;
   box-shadow: 0 4rpx 0 #b7a884, 0 8rpx 14rpx rgba(0, 0, 0, 0.24);
   transition: transform 0.12s ease, box-shadow 0.12s ease;
   overflow: hidden;
@@ -108,13 +108,14 @@
   }
 
   &__rank {
-    font-size: 40rpx;
+    font-size: 44rpx;
     font-weight: 700;
     line-height: 1;
     font-family: 'Songti SC', 'STSong', serif;
 
+    /* 万字：数字墨蓝、萬字朱红，和市面牌面一致 */
     &--W {
-      color: #b23a2e;
+      color: #1b2a5b;
     }
 
     &--T {
@@ -139,8 +140,8 @@
   }
 
   &__suit {
-    margin-top: 4rpx;
-    font-size: 26rpx;
+    margin-top: 2rpx;
+    font-size: 30rpx;
     font-weight: 600;
     line-height: 1;
     font-family: 'Songti SC', 'STSong', serif;
@@ -174,11 +175,11 @@
   &__honor {
     font-size: 44rpx;
     font-weight: 700;
-    color: #2b2b2b;
+    color: #1b2a5b;
     font-family: 'Songti SC', 'STSong', serif;
 
     &.is-red {
-      color: #b23a2e;
+      color: #c0392b;
     }
 
     &.is-green {
@@ -202,15 +203,16 @@
     font-size: 28rpx;
   }
 
-  /* 白板：真实牌面是空白的，只留一道内框 */
+  /* 白板：真实牌面是空白的，只留一道蓝色内框 */
   &__blank {
     position: absolute;
     top: 14%;
     right: 16%;
     bottom: 14%;
     left: 16%;
-    border: 3rpx solid #2f6a48;
+    border: 3rpx solid #2c4a8a;
     border-radius: 4rpx;
+    box-shadow: inset 0 0 0 3rpx #fffdf6, inset 0 0 0 5rpx rgba(44, 74, 138, 0.55);
   }
 
   /* 「癞」字角标：右上角，压在牌面上 */
@@ -283,30 +285,66 @@
   position: absolute;
   border-radius: 50%;
   box-sizing: border-box;
-  /* 筒子：外圈深蓝 + 内圈留白 + 中心红点，还原常见牌面 */
+  /* 筒子：中心实心点 + 一圈白 + 彩色外环，还原常见牌面 */
   background: radial-gradient(
     circle at 50% 50%,
-    #c0392b 0%,
-    #c0392b 26%,
-    #fffdf6 27%,
-    #fffdf6 48%,
-    #1f5fa8 49%,
+    #1f5fa8 0%,
+    #1f5fa8 25%,
+    #fffdf6 26%,
+    #fffdf6 47%,
+    #1f5fa8 48%,
     #1f5fa8 100%
   );
-  box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.35);
 
+  &--blue {
+    background: radial-gradient(
+      circle at 50% 50%,
+      #1f5fa8 0%,
+      #1f5fa8 25%,
+      #fffdf6 26%,
+      #fffdf6 47%,
+      #1f5fa8 48%,
+      #1f5fa8 100%
+    );
+  }
+
+  &--green {
+    background: radial-gradient(
+      circle at 50% 50%,
+      #1f7a45 0%,
+      #1f7a45 25%,
+      #fffdf6 26%,
+      #fffdf6 47%,
+      #1f7a45 48%,
+      #1f7a45 100%
+    );
+  }
+
+  &--red {
+    background: radial-gradient(
+      circle at 50% 50%,
+      #c0392b 0%,
+      #c0392b 25%,
+      #fffdf6 26%,
+      #fffdf6 47%,
+      #c0392b 48%,
+      #c0392b 100%
+    );
+  }
+
+  /* 一筒：整幅团花，红心 + 红环 + 蓝外环 */
   &--big {
     background: radial-gradient(
       circle at 50% 50%,
       #c0392b 0%,
-      #c0392b 18%,
-      #fffdf6 19%,
-      #fffdf6 38%,
-      #1f5fa8 39%,
-      #1f5fa8 76%,
-      #fffdf6 77%,
-      #fffdf6 88%,
-      #1f5fa8 89%,
+      #c0392b 13%,
+      #fffdf6 14%,
+      #fffdf6 27%,
+      #c0392b 28%,
+      #c0392b 40%,
+      #fffdf6 41%,
+      #fffdf6 55%,
+      #1f5fa8 56%,
       #1f5fa8 100%
     );
   }
@@ -315,19 +353,58 @@
 .mj-stick {
   position: absolute;
   box-sizing: border-box;
-  border-radius: 40%;
-  /* 条子：竹节，上下深绿、中段浅绿，中间一道高光 */
+  border-radius: 34%;
+  /* 条子：竹节，上下深色、中段提亮，左右各一道高光边 */
   background: linear-gradient(
     180deg,
-    #1f7a45 0%,
-    #1f7a45 22%,
-    #3ea06a 23%,
-    #6fc294 50%,
-    #3ea06a 77%,
-    #1f7a45 78%,
-    #1f7a45 100%
+    #0e5330 0%,
+    #0e5330 11%,
+    #2f9c66 12%,
+    #63c294 46%,
+    #2f9c66 82%,
+    #0e5330 83%,
+    #0e5330 100%
   );
-  box-shadow: inset 1rpx 0 0 rgba(255, 255, 255, 0.35);
+  box-shadow: inset 1rpx 0 0 rgba(255, 255, 255, 0.45), inset -1rpx 0 0 rgba(0, 0, 0, 0.16);
+
+  &--green {
+    background: linear-gradient(
+      180deg,
+      #0e5330 0%,
+      #0e5330 11%,
+      #2f9c66 12%,
+      #63c294 46%,
+      #2f9c66 82%,
+      #0e5330 83%,
+      #0e5330 100%
+    );
+  }
+
+  &--red {
+    background: linear-gradient(
+      180deg,
+      #7c1d13 0%,
+      #7c1d13 11%,
+      #c0392b 12%,
+      #e88074 46%,
+      #c0392b 82%,
+      #7c1d13 83%,
+      #7c1d13 100%
+    );
+  }
+
+  &--blue {
+    background: linear-gradient(
+      180deg,
+      #103563 0%,
+      #103563 11%,
+      #2a6bb0 12%,
+      #7fb0e0 46%,
+      #2a6bb0 82%,
+      #103563 83%,
+      #103563 100%
+    );
+  }
 }
 
 /* 1 条（幺鸡）：简化鸟形，绿身红喙 */

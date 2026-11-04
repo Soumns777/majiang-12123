@@ -45,6 +45,8 @@
     display: flex;
     align-items: center;
     gap: 8rpx;
+    /* 座位窄（左右两家只有 220rpx），标签整体换行，不要把「机器人」拆成两行 */
+    flex-wrap: wrap;
   }
 
   &__name-text {
@@ -63,10 +65,18 @@
     color: #1d2b24;
     background: #d9ad55;
     line-height: 28rpx;
+    white-space: nowrap;
+    flex-shrink: 0;
 
     &--off {
       background: #6b6b6b;
       color: #f0f0f0;
+    }
+
+    &--bot {
+      background: rgba(120, 200, 255, 0.22);
+      color: #9fd8ff;
+      border: 1rpx solid rgba(120, 200, 255, 0.4);
     }
   }
 
