@@ -130,9 +130,11 @@ public class Room {
         }
     }
 
-    /** 座位上的玩家是不是机器人。 */
+    /** 座位上的玩家是不是机器人。加锁：tick 线程读 players 时可能有玩家正在加入。 */
     public boolean isBotSeat(int seat) {
-        return findBySeat(seat).map(Player::isBot).orElse(false);
+        synchronized (this) {
+            return findBySeat(seat).map(Player::isBot).orElse(false);
+        }
     }
 
     public void touch() {
