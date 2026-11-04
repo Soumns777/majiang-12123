@@ -25,6 +25,9 @@ public class ViewMapper {
     public TableView toView(Room room, String viewerId) {
         GameTable table = room.getTable();
         int viewerSeat = room.findPlayer(viewerId).map(Player::getSeat).orElse(-1);
+        // 观战者 viewerSeat 恒为 -1，下面的 isSelf 判定自然全部为 false，
+        // 于是手牌、暗杠、可用操作都不会下发——不需要额外分支。
+        boolean spectator = room.isSpectator(viewerId);
 
         List<PlayerView> playerViews = new ArrayList<>(4);
         for (int seat = 0; seat < 4; seat++) {
@@ -53,6 +56,8 @@ public class ViewMapper {
                 table == null ? -1 : table.getLastDiscardSeat(),
                 table == null ? 0 : table.getDeadlineAt(),
                 System.currentTimeMillis(),
+                spectator,
+                room.spectatorNames(),
                 playerViews,
                 toResultView(table == null ? null : table.getResult())
         );

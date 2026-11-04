@@ -34,6 +34,8 @@ public class RoomService {
 
     private static final Logger log = LoggerFactory.getLogger(RoomService.class);
     private static final SecureRandom RANDOM = new SecureRandom();
+    /** 单个房间的观战人数上限，防止一个房间号被拿来当直播间刷爆内存 */
+    private static final int MAX_SPECTATORS = 20;
 
     private final RoomRepository repository;
     private final ViewMapper viewMapper;
@@ -150,13 +152,16 @@ public class RoomService {
                 existing.setOnline(true);
                 existing.setNickname(profile.nickname());
                 repository.save(room);
+            } else if (room.getStatus() != RoomStatus.WAITING || room.isFull()) {
+                // 满员 / 已开局：不再直接报错，转为观战。
+                // 这是「用房间号看别人打牌」的唯一入口，和坐下打牌共用同一个房间号。
+                if (room.findSpectator(profile.id()).isEmpty()
+                        && room.getSpectators().size() >= MAX_SPECTATORS) {
+                    throw new BusinessException("观战人数已满");
+                }
+                room.addSpectator(profile.id(), profile.nickname(), profile.avatar());
+                repository.save(room);
             } else {
-                if (room.getStatus() != RoomStatus.WAITING) {
-                    throw new BusinessException("对局已开始，无法加入");
-                }
-                if (room.isFull()) {
-                    throw new BusinessException("房间已满");
-                }
                 int seat = room.nextFreeSeat();
                 if (seat < 0) {
                     throw new BusinessException("没有空座位");
@@ -172,11 +177,49 @@ public class RoomService {
         return room;
     }
 
+    /**
+     * 主动观战：不管房间满没满、开没开局，都只以观战身份进入。
+     *
+     * <p>如果这个人本来就坐在座位上，直接返回原房间（不降级成观战）。</p>
+     */
+    public Room watchRoom(String roomId, String playerId, String nickname, String avatar) {
+        Room room = requireRoom(roomId);
+        PlayerProfile profile = registerPlayer(playerId, nickname, avatar);
+        synchronized (room) {
+            if (room.findPlayer(profile.id()).isPresent()) {
+                room.findPlayer(profile.id()).ifPresent(p -> p.setOnline(true));
+                repository.save(room);
+            } else {
+                if (room.findSpectator(profile.id()).isEmpty()
+                        && room.getSpectators().size() >= MAX_SPECTATORS) {
+                    throw new BusinessException("观战人数已满");
+                }
+                room.addSpectator(profile.id(), profile.nickname(), profile.avatar());
+                repository.save(room);
+            }
+        }
+        publish(roomId, "watched");
+        return room;
+    }
+
     public Room leaveRoom(String roomId, String playerId) {
         Room room = requireRoom(roomId);
         synchronized (room) {
-            Player player = room.findPlayer(playerId)
-                    .orElseThrow(() -> new BusinessException("你不在这个房间里"));
+            Player player = room.findPlayer(playerId).orElse(null);
+            if (player == null) {
+                // 观战者退出：随时可以，不受对局状态限制
+                if (room.findSpectator(playerId).isEmpty()) {
+                    throw new BusinessException("你不在这个房间里");
+                }
+                room.removeSpectator(playerId);
+                if (room.getPlayers().isEmpty()) {
+                    repository.delete(roomId);
+                } else {
+                    repository.save(room);
+                }
+                publish(roomId, "left");
+                return room;
+            }
             if (room.getStatus() == RoomStatus.PLAYING) {
                 throw new BusinessException("对局进行中，不能退出房间");
             }
@@ -414,6 +457,11 @@ public class RoomService {
                 room.touch();
                 repository.save(room);
             });
+            room.findSpectator(playerId).ifPresent(spectator -> {
+                spectator.setSessionId(sessionId);
+                room.touch();
+                repository.save(room);
+            });
         }
         publish(roomId, online ? "online" : "offline");
         return room;
@@ -424,7 +472,8 @@ public class RoomService {
             return null;
         }
         for (Room room : repository.findAll()) {
-            if (room.findBySession(sessionId).isPresent()) {
+            if (room.findBySession(sessionId).isPresent()
+                    || room.findSpectatorBySession(sessionId).isPresent()) {
                 return room;
             }
         }
@@ -480,6 +529,9 @@ public class RoomService {
     // ------------------------------------------------------------------
 
     private Player requirePlayer(Room room, String playerId) {
+        if (room.isSpectator(playerId)) {
+            throw new BusinessException("观战中不能进行牌局操作");
+        }
         return room.findPlayer(playerId)
                 .orElseThrow(() -> new BusinessException("你不在这个房间里"));
     }

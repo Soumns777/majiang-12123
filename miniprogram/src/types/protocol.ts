@@ -70,6 +70,10 @@ export interface TableView {
   lastDiscardSeat: number
   deadlineAt: number
   serverTime: number
+  /** 当前连接者是不是观战者：是则所有人手牌都为空 */
+  spectator: boolean
+  /** 观战者昵称列表 */
+  spectators: string[]
   players: PlayerView[]
   result?: ResultView
 }

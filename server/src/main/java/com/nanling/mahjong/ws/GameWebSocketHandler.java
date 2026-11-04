@@ -75,6 +75,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         if (room != null) {
             room.findBySession(session.getId()).ifPresent(player ->
                     roomService.markOnline(room.getId(), player.getId(), null, false));
+            room.findSpectatorBySession(session.getId()).ifPresent(spectator ->
+                    roomService.markOnline(room.getId(), spectator.getId(), null, false));
         }
         log.info("ws closed, session={}, status={}", session.getId(), status);
     }
@@ -95,6 +97,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             case HELLO -> onHello(session, data);
             case ROOM_CREATE -> onRoomCreate(session, data);
             case ROOM_JOIN -> onRoomJoin(session, data);
+            case ROOM_WATCH -> onRoomWatch(session, data);
             case ROOM_LEAVE -> onRoomLeave(session);
             case ROOM_READY -> onReady(session, data);
             case ROOM_RULE -> onRoomRule(session, data);
@@ -143,6 +146,24 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             throw new BusinessException("请输入房间号");
         }
         Room room = roomService.joinRoom(roomId, playerId, nickname(session), avatar(session));
+        session.getAttributes().put(ATTR_ROOM_ID, room.getId());
+        roomService.markOnline(room.getId(), playerId, session.getId(), true);
+        pushState(session, room.getId(), playerId);
+    }
+
+    /**
+     * 主动观战：不论房间是否满员/是否已开局，都以观战身份进入。
+     *
+     * <p>和 {@code ROOM_JOIN} 的区别：ROOM_JOIN 有空位就坐下，满员才降级观战；
+     * ROOM_WATCH 永远不占座位。</p>
+     */
+    private void onRoomWatch(WebSocketSession session, JsonNode data) throws Exception {
+        String playerId = requirePlayerId(session);
+        String roomId = text(data, "roomId");
+        if (roomId == null || roomId.isBlank()) {
+            throw new BusinessException("请输入房间号");
+        }
+        Room room = roomService.watchRoom(roomId, playerId, nickname(session), avatar(session));
         session.getAttributes().put(ATTR_ROOM_ID, room.getId());
         roomService.markOnline(room.getId(), playerId, session.getId(), true);
         pushState(session, room.getId(), playerId);

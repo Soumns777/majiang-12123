@@ -5,6 +5,7 @@ import com.nanling.mahjong.room.Player;
 import com.nanling.mahjong.room.Room;
 import com.nanling.mahjong.room.RoomService;
 import com.nanling.mahjong.room.RoomUpdatedEvent;
+import com.nanling.mahjong.room.Spectator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -36,16 +37,24 @@ public class RoomBroadcaster {
             return;
         }
         for (Player player : room.sortedPlayers()) {
-            WebSocketSession session = registry.get(player.getSessionId());
-            if (session == null || !session.isOpen()) {
-                continue;
-            }
-            try {
-                WsSender.send(session, objectMapper, WsType.ROOM_STATE.name(),
-                        roomService.viewFor(room.getId(), player.getId()));
-            } catch (Exception ex) {
-                log.warn("push room state failed, room={}, player={}", room.getId(), player.getId(), ex);
-            }
+            push(room, player.getId(), player.getSessionId());
+        }
+        // 观战者也要跟着刷：他们看到的是一份「所有人手牌都隐藏」的视图
+        for (Spectator spectator : room.getSpectators()) {
+            push(room, spectator.getId(), spectator.getSessionId());
+        }
+    }
+
+    private void push(Room room, String viewerId, String sessionId) {
+        WebSocketSession session = registry.get(sessionId);
+        if (session == null || !session.isOpen()) {
+            return;
+        }
+        try {
+            WsSender.send(session, objectMapper, WsType.ROOM_STATE.name(),
+                    roomService.viewFor(room.getId(), viewerId));
+        } catch (Exception ex) {
+            log.warn("push room state failed, room={}, viewer={}", room.getId(), viewerId, ex);
         }
     }
 }

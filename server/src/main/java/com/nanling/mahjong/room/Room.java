@@ -20,6 +20,8 @@ public class Room {
     private String ownerId;
     private final RuleConfig ruleConfig;
     private final List<Player> players = new ArrayList<>();
+    /** 观战者：不占座位、不参与结算，只读牌桌 */
+    private final List<Spectator> spectators = new ArrayList<>();
     private final long createdAt;
     private RoomStatus status = RoomStatus.WAITING;
     private GameTable table;
@@ -127,6 +129,56 @@ public class Room {
 
     public boolean isFull() {
         return players.size() >= 4;
+    }
+
+    // ------------------------------------------------------------------
+    // 观战
+    // ------------------------------------------------------------------
+
+    public List<Spectator> getSpectators() {
+        return spectators;
+    }
+
+    public Optional<Spectator> findSpectator(String playerId) {
+        if (playerId == null) {
+            return Optional.empty();
+        }
+        return spectators.stream().filter(s -> s.getId().equals(playerId)).findFirst();
+    }
+
+    public Optional<Spectator> findSpectatorBySession(String sessionId) {
+        if (sessionId == null) {
+            return Optional.empty();
+        }
+        return spectators.stream().filter(s -> sessionId.equals(s.getSessionId())).findFirst();
+    }
+
+    /** 加入观战；已在观战列表里则只更新昵称/头像。 */
+    public Spectator addSpectator(String playerId, String nickname, String avatar) {
+        Spectator spectator = findSpectator(playerId).orElse(null);
+        if (spectator == null) {
+            spectator = new Spectator(playerId, nickname, avatar);
+            spectators.add(spectator);
+        } else {
+            spectator.setNickname(nickname);
+            spectator.setAvatar(avatar);
+        }
+        touch();
+        return spectator;
+    }
+
+    public void removeSpectator(String playerId) {
+        spectators.removeIf(s -> s.getId().equals(playerId));
+        touch();
+    }
+
+    public boolean isSpectator(String playerId) {
+        return findSpectator(playerId).isPresent();
+    }
+
+    /** 观战者昵称列表，用于牌桌上显示「观战 N 人」。 */
+    public List<String> spectatorNames() {
+        return spectators.stream().map(Spectator::getNickname).toList();
     }
 
     public boolean allReady() {

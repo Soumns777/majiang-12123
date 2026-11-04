@@ -41,6 +41,7 @@ public class RoomController {
                         "roomId", room.getId(),
                         "ownerId", room.getOwnerId(),
                         "players", room.getPlayers().size(),
+                        "spectators", room.getSpectators().size(),
                         "status", room.getStatus().name(),
                         "round", room.getRound(),
                         "maxRounds", room.getRuleConfig().getMaxRounds()))
@@ -62,6 +63,7 @@ public class RoomController {
                 "status", room.getStatus().name(),
                 "round", room.getRound(),
                 "players", room.getPlayers().size(),
+                "spectators", room.getSpectators().size(),
                 "wildcard", room.getRuleConfig().getWildcardDisplay()
         ));
     }

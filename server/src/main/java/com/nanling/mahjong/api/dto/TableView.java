@@ -24,6 +24,10 @@ public record TableView(
         int lastDiscardSeat,
         long deadlineAt,
         long serverTime,
+        /** 当前连接者是不是观战者（是则看不到任何人的手牌） */
+        boolean spectator,
+        /** 观战者昵称列表 */
+        List<String> spectators,
         List<PlayerView> players,
         ResultView result
 ) {
