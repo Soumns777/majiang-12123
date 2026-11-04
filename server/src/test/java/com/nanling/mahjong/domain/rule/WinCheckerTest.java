@@ -39,6 +39,11 @@ class WinCheckerTest {
         return WinChecker.check(new WinRequest(hand, melds, config(wildcard), false));
     }
 
+    /** 癞子已作废（有人打出过癞子）时的判定。 */
+    private WinResult checkVoided(List<Integer> hand, List<Meld> melds, String wildcard) {
+        return WinChecker.check(new WinRequest(hand, melds, config(wildcard), false, true));
+    }
+
     @Test
     @DisplayName("用例①：万子 9 实牌 + 2 癞子 = 11 张，9支与11支同时成立")
     void case01_nineAndElevenSticks() {
@@ -183,5 +188,70 @@ class WinCheckerTest {
 
         assertTrue(result.isWin(), result.getReason());
         assertTrue(result.getFlavorLabels().contains("自摸"));
+    }
+
+    // ------------------------------------------------------------------
+    // 自制规则：打出癞子，全场作废
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("癞子作废后不能再补顺子：原本靠癞子补 3万 的混一色牌型判负")
+    void voidedJokerCannotFillChow() {
+        // 万子 1,2,[癞子=5筒]，癞子补成 3万 才能成 123万
+        List<Integer> hand = tiles(
+                "1W", "2W",
+                "4W", "5W", "6W",
+                "7W", "8W", "9W",
+                "E", "E", "E",
+                "C", "C",
+                "5T");
+
+        WinResult normal = check(hand, List.of(), "5T");
+        assertTrue(normal.isWin(), "未作废时应能靠癞子补成 123万：" + normal.getReason());
+        assertTrue(normal.getFlavorLabels().contains("混一色"));
+
+        WinResult voided = checkVoided(hand, List.of(), "5T");
+        assertFalse(voided.isWin(), "作废后 5筒 只是普通筒子，1万2万 组不成面子");
+        assertTrue(voided.getReason().contains("牌型不成立"), voided.getReason());
+    }
+
+    @Test
+    @DisplayName("癞子作废后跑风失效：靠癞子作将的牌型判负")
+    void voidedJokerBreaksPaoFengPair() {
+        // 万 9 张 + 筒 2345，癞子(9条) 作 5筒 的对子才成立
+        List<Integer> hand = tiles(
+                "1W", "2W", "3W",
+                "4W", "5W", "6W",
+                "7W", "8W", "9W",
+                "2T", "3T", "4T",
+                "5T",
+                "9B");
+
+        WinResult normal = check(hand, List.of(), "9B");
+        assertTrue(normal.isWin(), normal.getReason());
+        assertTrue(normal.getFlavorLabels().contains("跑风"), "癞子作将应触发跑风");
+        assertTrue(normal.isPairUsedJoker());
+
+        WinResult voided = checkVoided(hand, List.of(), "9B");
+        assertFalse(voided.isWin(), "作废后 9条 是实牌，既不能补将又破坏了缺一门");
+    }
+
+    @Test
+    @DisplayName("癞子作废后按自身牌面参与牌型，且不再要求调味剂（可裸胡）")
+    void voidedJokerCountsAsItsOwnTile() {
+        // 癞子本身是 5筒，正好能和自己凑成将牌
+        List<Integer> hand = tiles(
+                "1W", "2W", "3W",
+                "4W", "5W", "6W",
+                "7W", "8W", "9W",
+                "2T", "3T", "4T",
+                "5T",
+                "5T");
+
+        WinResult voided = checkVoided(hand, List.of(), "5T");
+        assertTrue(voided.isWin(), voided.getReason());
+        assertFalse(voided.getFlavorLabels().contains("跑风"), "作废后不应再有跑风");
+        assertFalse(voided.isPairUsedJoker());
+        assertTrue(voided.getFlavorLabels().contains("平胡"), "没有癞子可用，按裸胡计");
     }
 }

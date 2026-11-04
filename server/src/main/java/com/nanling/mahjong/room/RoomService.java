@@ -128,6 +128,9 @@ public class RoomService {
         if (request.requireFlavorForJokerHand() != null) {
             config.setRequireFlavorForJokerHand(request.requireFlavorForJokerHand());
         }
+        if (request.voidWildcardOnDiscard() != null) {
+            config.setVoidWildcardOnDiscard(request.voidWildcardOnDiscard());
+        }
     }
 
     private WildcardMode parseWildcardMode(String value) {
@@ -206,6 +209,29 @@ public class RoomService {
             repository.save(room);
         }
         publish(roomId, "ready");
+        return room;
+    }
+
+    /**
+     * 房间内切换自制规则「打出癞子，全场作废」。
+     *
+     * <p>只有房主可以改，且必须在开局前（{@link RoomStatus#WAITING}）。
+     * 改完会广播 {@code ROOM_STATE}，房间内所有人都能看到开关状态。</p>
+     */
+    public Room setVoidWildcardOnDiscard(String roomId, String playerId, boolean enabled) {
+        Room room = requireRoom(roomId);
+        synchronized (room) {
+            if (!room.getOwnerId().equals(playerId)) {
+                throw new BusinessException("只有房主可以修改规则");
+            }
+            if (room.getStatus() != RoomStatus.WAITING) {
+                throw new BusinessException("对局已开始，不能修改规则");
+            }
+            room.getRuleConfig().setVoidWildcardOnDiscard(enabled);
+            room.touch();
+            repository.save(room);
+        }
+        publish(roomId, "rule");
         return room;
     }
 

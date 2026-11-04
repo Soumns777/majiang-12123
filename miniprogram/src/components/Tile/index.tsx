@@ -10,6 +10,10 @@ export interface TileProps {
   dimmed?: boolean
   /** 只显示牌背 */
   back?: boolean
+  /** 本局癞子：加金色角标 */
+  wildcard?: boolean
+  /** 癞子已被作废：牌面加删除线 */
+  voided?: boolean
   onClick?: (code: string) => void
 }
 
@@ -19,7 +23,16 @@ const HONOR_CLASS: Record<string, string> = {
   P: 'is-blue'
 }
 
-export default function Tile({ code, size = 'md', selected, dimmed, back, onClick }: TileProps) {
+export default function Tile({
+  code,
+  size = 'md',
+  selected,
+  dimmed,
+  back,
+  wildcard,
+  voided,
+  onClick
+}: TileProps) {
   if (back) {
     return <View className={`mj-tile mj-tile--${size} mj-tile--back`} />
   }
@@ -29,7 +42,9 @@ export default function Tile({ code, size = 'md', selected, dimmed, back, onClic
     'mj-tile',
     `mj-tile--${size}`,
     selected ? 'is-selected' : '',
-    dimmed ? 'is-dimmed' : ''
+    dimmed ? 'is-dimmed' : '',
+    wildcard ? 'is-wildcard' : '',
+    voided ? 'is-voided' : ''
   ]
     .filter(Boolean)
     .join(' ')

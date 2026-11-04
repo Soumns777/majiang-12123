@@ -61,6 +61,36 @@
       0 0 0 4rpx rgba(245, 217, 143, 0.9);
   }
 
+  /* 本局癞子：金色描边 + 右上角金点 */
+  &.is-wildcard {
+    border-color: #d9ad55;
+    box-shadow: 0 3rpx 0 #b7a884, 0 0 0 2rpx rgba(217, 173, 85, 0.85);
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 4rpx;
+      right: 4rpx;
+      width: 10rpx;
+      height: 10rpx;
+      border-radius: 50%;
+      background: #d9ad55;
+    }
+  }
+
+  /* 癞子已作废：牌面变灰并划掉 */
+  &.is-voided {
+    opacity: 0.6;
+    border-color: #b9b1a0;
+
+    .mj-tile__rank,
+    .mj-tile__suit,
+    .mj-tile__honor {
+      text-decoration: line-through;
+      color: #8b8578;
+    }
+  }
+
   &.is-dimmed {
     opacity: 0.45;
   }

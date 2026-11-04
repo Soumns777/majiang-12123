@@ -19,6 +19,11 @@ import java.util.List;
  * <p>癞子在这里是万能牌：可以被当成任意一张牌去补顺子、补刻子或补将牌。
  * 算法把癞子“解析”成具体牌面后再统计花色，因此 9支 的口径与规则一致：
  * 实牌 + 癞子合计超过 9 张才算，癞子凑出刚好 9 张不算。</p>
+ *
+ * <p><b>自制规则「打出癞子，全场作废」</b>：当 {@link WinRequest#wildcardVoided()} 为 true 时，
+ * 癞子不再被抽出来当万能牌，而是直接按自身牌面计入 {@code counts}。
+ * 由此自然得出：不能补面子、不能作将（跑风失效）、9支/11支 只数真实牌面，
+ * 且因为手里“没有癞子”，也就没有调味剂要求，可以裸胡。</p>
  */
 public final class WinChecker {
 
@@ -46,11 +51,13 @@ public final class WinChecker {
 
         int[] counts = new int[Tiles.KIND_COUNT];
         int jokers = 0;
+        // 癞子作废后（有人打出过癞子），癞子按自身牌面当普通牌统计
+        boolean wildcardVoided = request.wildcardVoided();
         for (int tile : concealed) {
             if (tile < 0 || tile >= Tiles.KIND_COUNT) {
                 return WinResult.fail("手牌中存在非法牌");
             }
-            if (config.isWildcard(tile)) {
+            if (!wildcardVoided && config.isWildcard(tile)) {
                 jokers++;
             } else {
                 counts[tile]++;

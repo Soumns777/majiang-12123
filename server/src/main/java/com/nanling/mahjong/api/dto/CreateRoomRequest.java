@@ -8,6 +8,8 @@ public record CreateRoomRequest(
         Integer maxRounds,
         String wildcardMode,
         String wildcardTile,
-        Boolean requireFlavorForJokerHand
+        Boolean requireFlavorForJokerHand,
+        /** 自制规则：有人打出癞子后，全场癞子作废 */
+        Boolean voidWildcardOnDiscard
 ) {
 }

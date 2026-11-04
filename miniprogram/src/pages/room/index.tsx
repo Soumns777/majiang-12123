@@ -54,6 +54,16 @@ export default function Room() {
     socket.send('GAME_START')
   }
 
+  const voidWildcardOn = !!table.voidWildcardOnDiscard
+
+  const toggleVoidWildcard = () => {
+    if (!isOwner) {
+      Taro.showToast({ title: '只有房主可以修改规则', icon: 'none' })
+      return
+    }
+    socket.send('ROOM_RULE', { voidWildcardOnDiscard: !voidWildcardOn })
+  }
+
   const leaveRoom = () => {
     socket.send('ROOM_LEAVE')
     Taro.navigateBack()
@@ -107,6 +117,29 @@ export default function Room() {
           <Text className="room__info-key">胡牌</Text>
           <Text className="room__info-value">4 面子 + 1 将 · 缺一门 · 有癞子需命中调味剂</Text>
         </View>
+      </View>
+
+      <View className="room__rules">
+        <View className="room__rule">
+          <View className="room__rule-main">
+            <View className="room__rule-head">
+              <Text className="room__rule-name">打出癞子，全场作废</Text>
+              <Text className="room__rule-tag">自制规则</Text>
+            </View>
+            <Text className="room__rule-desc">
+              开启后，本局只要有人打出癞子，所有人的癞子都不再是万能牌，只能按原牌面参与胡牌
+            </Text>
+          </View>
+          <View
+            className={`room__switch ${voidWildcardOn ? 'is-on' : ''} ${isOwner ? '' : 'is-locked'}`}
+            onClick={toggleVoidWildcard}
+          >
+            <View className="room__switch-dot" />
+          </View>
+        </View>
+        <Text className="room__rule-tip">
+          {isOwner ? '开局前可随时修改' : '仅房主可修改'}
+        </Text>
       </View>
 
       <View className="room__actions">

@@ -62,6 +62,10 @@ export interface TableView {
   remainingTiles: number
   wildcard?: string
   wildcardLabel: string
+  /** 房间是否开启了自制规则「打出癞子，全场作废」 */
+  voidWildcardOnDiscard: boolean
+  /** 本局癞子是否已经作废（有人打出过癞子） */
+  wildcardVoided: boolean
   lastDiscardTile?: string
   lastDiscardSeat: number
   deadlineAt: number
@@ -87,4 +91,5 @@ export interface CreateRoomOptions {
   wildcardMode?: 'NONE' | 'FLIP_NEXT' | 'FIXED'
   wildcardTile?: string
   requireFlavorForJokerHand?: boolean
+  voidWildcardOnDiscard?: boolean
 }

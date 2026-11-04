@@ -35,6 +35,23 @@
       color: #f5d98f;
       font-weight: 600;
     }
+
+    /* 癞子已作废：划掉原牌面 */
+    &--voided {
+      color: rgba(247, 239, 217, 0.42);
+      text-decoration: line-through;
+    }
+  }
+
+  &__bar-flag {
+    margin-left: 8rpx;
+    font-size: 18rpx;
+    line-height: 28rpx;
+    padding: 0 8rpx;
+    border-radius: 6rpx;
+    color: #ffb4a8;
+    background: rgba(226, 87, 74, 0.18);
+    border: 2rpx solid rgba(226, 87, 74, 0.55);
   }
 
   &__arena {
@@ -111,6 +128,19 @@
     font-size: 22rpx;
     color: #f5d98f;
     font-variant-numeric: tabular-nums;
+  }
+
+  &__void {
+    margin-top: 18rpx;
+    padding: 8rpx 22rpx;
+    border-radius: 999rpx;
+    background: rgba(226, 87, 74, 0.18);
+    border: 2rpx solid rgba(226, 87, 74, 0.5);
+  }
+
+  &__void-text {
+    font-size: 20rpx;
+    color: #ffc2b6;
   }
 
   &__mine {

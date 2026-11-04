@@ -16,6 +16,10 @@ public record TableView(
         int remainingTiles,
         String wildcard,
         String wildcardLabel,
+        /** 房间是否开启了自制规则「打出癞子，全场作废」 */
+        boolean voidWildcardOnDiscard,
+        /** 本局癞子是否已经作废（有人打出过癞子） */
+        boolean wildcardVoided,
         String lastDiscardTile,
         int lastDiscardSeat,
         long deadlineAt,

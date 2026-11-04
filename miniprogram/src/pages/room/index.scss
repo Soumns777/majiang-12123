@@ -153,6 +153,97 @@
     line-height: 1.6;
   }
 
+  &__rules {
+    margin-top: 20rpx;
+    padding: 26rpx 28rpx 20rpx;
+    border-radius: 22rpx;
+    background: rgba(5, 30, 21, 0.5);
+    border: 2rpx solid rgba(255, 255, 255, 0.06);
+  }
+
+  &__rule {
+    display: flex;
+    align-items: center;
+    gap: 24rpx;
+  }
+
+  &__rule-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__rule-head {
+    display: flex;
+    align-items: center;
+    gap: 10rpx;
+  }
+
+  &__rule-name {
+    font-size: 26rpx;
+    font-weight: 600;
+    color: #f4ecd9;
+  }
+
+  &__rule-tag {
+    font-size: 18rpx;
+    line-height: 28rpx;
+    padding: 0 8rpx;
+    border-radius: 6rpx;
+    color: #f5d98f;
+    border: 2rpx solid rgba(245, 217, 143, 0.4);
+  }
+
+  &__rule-desc {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 20rpx;
+    line-height: 1.55;
+    color: rgba(247, 239, 217, 0.5);
+  }
+
+  &__rule-tip {
+    display: block;
+    margin-top: 14rpx;
+    font-size: 18rpx;
+    color: rgba(247, 239, 217, 0.32);
+  }
+
+  &__switch {
+    flex-shrink: 0;
+    width: 82rpx;
+    height: 46rpx;
+    padding: 0 5rpx;
+    border-radius: 999rpx;
+    background: rgba(255, 255, 255, 0.12);
+    border: 2rpx solid rgba(255, 255, 255, 0.14);
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    transition: background 0.18s ease;
+
+    &.is-on {
+      justify-content: flex-end;
+      background: linear-gradient(180deg, #f5d98f 0%, #d9ad55 100%);
+      border-color: transparent;
+    }
+
+    &.is-locked {
+      opacity: 0.55;
+    }
+  }
+
+  &__switch-dot {
+    width: 34rpx;
+    height: 34rpx;
+    border-radius: 50%;
+    background: #e8e0cc;
+    box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.3);
+
+    .room__switch.is-on & {
+      background: #1d2b24;
+    }
+  }
+
   &__actions {
     position: fixed;
     left: 0;

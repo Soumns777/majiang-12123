@@ -5,6 +5,7 @@ import com.nanling.mahjong.domain.game.GamePhase;
 import com.nanling.mahjong.domain.rule.MeldType;
 import com.nanling.mahjong.domain.rule.RuleConfig;
 import com.nanling.mahjong.domain.rule.WildcardMode;
+import com.nanling.mahjong.domain.tile.Tiles;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -148,5 +150,70 @@ class GameTableTest {
 
         assertEquals(GamePhase.ENDED, table.getPhase());
         assertNotNull(table.getResult());
+    }
+
+    // ------------------------------------------------------------------
+    // 自制规则：打出癞子，全场作废
+    // ------------------------------------------------------------------
+
+    private RuleConfig voidOnDiscard(boolean enabled) {
+        RuleConfig config = new RuleConfig();
+        int wildcard = Tiles.fromCode("5T");
+        config.setWildcardEnabled(true);
+        config.setWildcardMode(WildcardMode.FIXED);
+        config.setFixedWildcardTile(wildcard);
+        config.setWildcardTile(wildcard);
+        config.setVoidWildcardOnDiscard(enabled);
+        return config;
+    }
+
+    /** 找一个庄家手上有癞子的种子，返回 [牌桌, 癞子id]。 */
+    private GameTable tableWhereDealerHoldsWildcard(RuleConfig config, int wildcard) {
+        for (long seed = 1; seed <= 3000; seed++) {
+            GameTable table = GameTable.start(config, seed, 0);
+            if (table.getHand(0).contains(wildcard)) {
+                return table;
+            }
+        }
+        fail("3000 个随机种子内庄家都没摸到癞子");
+        return null;
+    }
+
+    @Test
+    @DisplayName("自制规则：打出癞子后全场癞子作废")
+    void discardingWildcardVoidsAllWildcards() {
+        int wildcard = Tiles.fromCode("5T");
+        GameTable table = tableWhereDealerHoldsWildcard(voidOnDiscard(true), wildcard);
+
+        assertFalse(table.isWildcardVoided(), "开局时不应作废");
+        table.discard(0, wildcard);
+
+        assertTrue(table.isWildcardVoided(), "打出癞子后应全场作废");
+    }
+
+    @Test
+    @DisplayName("未开启规则时打出癞子不作废")
+    void discardingWildcardDoesNothingWhenRuleOff() {
+        int wildcard = Tiles.fromCode("5T");
+        GameTable table = tableWhereDealerHoldsWildcard(voidOnDiscard(false), wildcard);
+
+        table.discard(0, wildcard);
+
+        assertFalse(table.isWildcardVoided());
+    }
+
+    @Test
+    @DisplayName("规则开启但打出的是普通牌，不作废")
+    void discardingNormalTileDoesNotVoid() {
+        int wildcard = Tiles.fromCode("5T");
+        GameTable table = tableWhereDealerHoldsWildcard(voidOnDiscard(true), wildcard);
+
+        int normal = table.getHand(0).stream()
+                .filter(tile -> tile != wildcard)
+                .findFirst()
+                .orElseThrow();
+        table.discard(0, normal);
+
+        assertFalse(table.isWildcardVoided());
     }
 }

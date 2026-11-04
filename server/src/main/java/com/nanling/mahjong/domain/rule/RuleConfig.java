@@ -24,6 +24,16 @@ public class RuleConfig {
     /** 手牌含癞子时，是否必须命中 9支/11支/混一色/跑风 之一 */
     private boolean requireFlavorForJokerHand = true;
 
+    /**
+     * 自制规则「打出癞子，全场作废」。
+     *
+     * <p>开启后，本局只要有人打出过癞子，则所有玩家手上的癞子都不再是万能牌，
+     * 只能按它本身的牌面参与胡牌判定（也不能再触发跑风）。</p>
+     *
+     * <p>默认关闭，由房主在房间内手动开启。</p>
+     */
+    private boolean voidWildcardOnDiscard = false;
+
     /** 底分 */
     private int baseScore = 1;
 
@@ -43,6 +53,7 @@ public class RuleConfig {
         copy.fixedWildcardTile = fixedWildcardTile;
         copy.wildcardTile = wildcardTile;
         copy.requireFlavorForJokerHand = requireFlavorForJokerHand;
+        copy.voidWildcardOnDiscard = voidWildcardOnDiscard;
         copy.baseScore = baseScore;
         copy.maxRounds = maxRounds;
         copy.actionTimeoutSeconds = actionTimeoutSeconds;
@@ -97,6 +108,14 @@ public class RuleConfig {
 
     public void setRequireFlavorForJokerHand(boolean requireFlavorForJokerHand) {
         this.requireFlavorForJokerHand = requireFlavorForJokerHand;
+    }
+
+    public boolean isVoidWildcardOnDiscard() {
+        return voidWildcardOnDiscard;
+    }
+
+    public void setVoidWildcardOnDiscard(boolean voidWildcardOnDiscard) {
+        this.voidWildcardOnDiscard = voidWildcardOnDiscard;
     }
 
     public int getBaseScore() {

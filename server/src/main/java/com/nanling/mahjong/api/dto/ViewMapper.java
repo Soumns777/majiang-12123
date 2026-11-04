@@ -47,6 +47,8 @@ public class ViewMapper {
                 table == null ? 0 : table.getRemainingTiles(),
                 wildcardCode(table),
                 wildcardLabel(table),
+                room.getRuleConfig().isVoidWildcardOnDiscard(),
+                table != null && table.isWildcardVoided(),
                 lastDiscardCode(table),
                 table == null ? -1 : table.getLastDiscardSeat(),
                 table == null ? 0 : table.getDeadlineAt(),

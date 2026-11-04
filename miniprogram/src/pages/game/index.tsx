@@ -99,6 +99,8 @@ export default function Game() {
   }
 
   const isMyTurn = table.phase === 'PLAYER_TURN' && table.currentSeat === seatIndex
+  const wildcardCode = table.wildcard
+  const wildcardVoided = !!table.wildcardVoided
   const isClaiming = table.phase === 'WAITING_CLAIM'
   const actions = me.actions ?? []
   const remain =
@@ -176,7 +178,14 @@ export default function Game() {
         </View>
         <View className="game__bar-item">
           <Text className="game__bar-key">癞子</Text>
-          <Text className="game__bar-value game__bar-value--gold">{table.wildcardLabel}</Text>
+          <Text
+            className={`game__bar-value ${
+              wildcardVoided ? 'game__bar-value--voided' : 'game__bar-value--gold'
+            }`}
+          >
+            {table.wildcardLabel}
+          </Text>
+          {wildcardVoided && <Text className="game__bar-flag">作废</Text>}
         </View>
       </View>
 
@@ -234,6 +243,12 @@ export default function Game() {
           {table.phase !== 'ENDED' && (
             <Text className="game__countdown">{remain}s</Text>
           )}
+
+          {wildcardVoided && (
+            <View className="game__void">
+              <Text className="game__void-text">有人打出癞子 · 本局癞子已作废</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -264,6 +279,8 @@ export default function Game() {
               code={tile}
               size="hand"
               selected={selected === tile}
+              wildcard={!wildcardVoided && tile === wildcardCode}
+              voided={wildcardVoided && tile === wildcardCode}
               onClick={onTileClick}
               key={`${tile}-${index}`}
             />

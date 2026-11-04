@@ -48,6 +48,9 @@ public class GameTable {
     private final Set<Integer> pendingSeats = new LinkedHashSet<>();
     private final Map<Integer, ActionType> pendingClaims = new LinkedHashMap<>();
 
+    /** 自制规则「打出癞子，全场作废」是否已触发（本局内一旦置位不再回退） */
+    private boolean wildcardVoided;
+
     private GameResult result;
     private long deadlineAt;
 
@@ -148,6 +151,11 @@ public class GameTable {
         return config.getWildcardTile();
     }
 
+    /** 本局癞子是否已作废（有人打出过癞子且规则开启）。 */
+    public boolean isWildcardVoided() {
+        return wildcardVoided;
+    }
+
     public GameResult getResult() {
         return result;
     }
@@ -194,7 +202,7 @@ public class GameTable {
             return List.of();
         }
         List<ActionType> actions = new ArrayList<>();
-        if (WinChecker.check(new WinRequest(hands[seat], melds[seat], config, true)).isWin()) {
+        if (WinChecker.check(new WinRequest(hands[seat], melds[seat], config, true, wildcardVoided)).isWin()) {
             actions.add(ActionType.HU);
         }
         if (hasConcealedKong(seat)) {
@@ -227,6 +235,10 @@ public class GameTable {
         }
         hands[seat].remove(index);
         discards[seat].add(tile);
+        // 自制规则：有人打出癞子后，全场癞子立即作废（本局内不可恢复）
+        if (config.isVoidWildcardOnDiscard() && config.isWildcard(tile)) {
+            wildcardVoided = true;
+        }
         lastDiscardTile = tile;
         lastDiscardSeat = seat;
         lastDrawnTile = -1;
@@ -305,7 +317,8 @@ public class GameTable {
 
     public synchronized void selfHu(int seat) {
         requireTurn(seat);
-        WinResult winResult = WinChecker.check(new WinRequest(hands[seat], melds[seat], config, true));
+        WinResult winResult = WinChecker.check(
+                new WinRequest(hands[seat], melds[seat], config, true, wildcardVoided));
         if (!winResult.isWin()) {
             throw new BusinessException("当前不能胡：" + winResult.getReason());
         }
@@ -389,7 +402,8 @@ public class GameTable {
     private void doHu(int seat, int tile, boolean selfDraw, int loserSeat) {
         List<Integer> copy = new ArrayList<>(hands[seat]);
         copy.add(tile);
-        WinResult winResult = WinChecker.check(new WinRequest(copy, melds[seat], config, selfDraw));
+        WinResult winResult = WinChecker.check(
+                new WinRequest(copy, melds[seat], config, selfDraw, wildcardVoided));
         if (!winResult.isWin()) {
             throw new BusinessException("胡牌判定失败：" + winResult.getReason());
         }
@@ -459,7 +473,7 @@ public class GameTable {
         List<ActionType> actions = new ArrayList<>();
         List<Integer> copy = new ArrayList<>(hands[seat]);
         copy.add(tile);
-        if (WinChecker.check(new WinRequest(copy, melds[seat], config, false)).isWin()) {
+        if (WinChecker.check(new WinRequest(copy, melds[seat], config, false, wildcardVoided)).isWin()) {
             actions.add(ActionType.HU);
         }
         int count = Collections.frequency(hands[seat], tile);
@@ -541,11 +555,11 @@ public class GameTable {
         return sb.toString().trim();
     }
 
-    /** 某门花色的张数（含癞子解析前的实牌），用于前端提示。 */
+    /** 某门花色的张数（含癞子解析前的实牌），用于前端提示。癞子作废后癞子按自身花色计数。 */
     public int countSuit(int seat, Suit suit) {
         int count = 0;
         for (int tile : hands[seat]) {
-            if (Tiles.suitOf(tile) == suit && !config.isWildcard(tile)) {
+            if (Tiles.suitOf(tile) == suit && (wildcardVoided || !config.isWildcard(tile))) {
                 count++;
             }
         }

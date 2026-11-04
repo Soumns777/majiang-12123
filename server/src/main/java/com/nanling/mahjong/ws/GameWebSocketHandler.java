@@ -97,6 +97,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             case ROOM_JOIN -> onRoomJoin(session, data);
             case ROOM_LEAVE -> onRoomLeave(session);
             case ROOM_READY -> onReady(session, data);
+            case ROOM_RULE -> onRoomRule(session, data);
             case GAME_START -> onGameStart(session);
             case GAME_ACTION -> onGameAction(session, data);
             case NEXT_ROUND -> onNextRound(session);
@@ -160,6 +161,20 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         String roomId = requireRoomId(session);
         boolean ready = data == null || data.isNull() || !data.has("ready") || data.get("ready").asBoolean();
         roomService.setReady(roomId, playerId, ready);
+    }
+
+    /**
+     * 房间内切换自制规则，目前只支持「打出癞子，全场作废」。
+     *
+     * <p>请求体：{@code {"voidWildcardOnDiscard": true}}</p>
+     */
+    private void onRoomRule(WebSocketSession session, JsonNode data) throws Exception {
+        String playerId = requirePlayerId(session);
+        String roomId = requireRoomId(session);
+        if (data == null || !data.hasNonNull("voidWildcardOnDiscard")) {
+            throw new BusinessException("缺少 voidWildcardOnDiscard 参数");
+        }
+        roomService.setVoidWildcardOnDiscard(roomId, playerId, data.get("voidWildcardOnDiscard").asBoolean());
     }
 
     private void onGameStart(WebSocketSession session) throws Exception {
