@@ -425,9 +425,17 @@ public class RoomService {
     // 查询 / 连接状态
     // ------------------------------------------------------------------
 
+    /**
+     * 生成某个连接者视角的牌桌视图。
+     *
+     * <p>加房间锁：视图要读手牌、副业、观战者列表，而广播发生在写操作释放锁之后，
+     * 不加锁就会读到「一半的」房间状态（甚至 ConcurrentModificationException）。</p>
+     */
     public TableView viewFor(String roomId, String playerId) {
         Room room = requireRoom(roomId);
-        return viewMapper.toView(room, playerId);
+        synchronized (room) {
+            return viewMapper.toView(room, playerId);
+        }
     }
 
     public Room requireRoom(String roomId) {

@@ -36,11 +36,12 @@ public class RoomBroadcaster {
         if (room == null) {
             return;
         }
+        // 先取快照再推送：广播在房间锁之外执行，直接遍历会和并发的加入/退出撞车
         for (Player player : room.sortedPlayers()) {
             push(room, player.getId(), player.getSessionId());
         }
         // 观战者也要跟着刷：他们看到的是一份「所有人手牌都隐藏」的视图
-        for (Spectator spectator : room.getSpectators()) {
+        for (Spectator spectator : room.spectatorSnapshot()) {
             push(room, spectator.getId(), spectator.getSessionId());
         }
     }

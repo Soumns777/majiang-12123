@@ -178,7 +178,9 @@ public class Room {
 
     /** 观战者昵称列表，用于牌桌上显示「观战 N 人」。 */
     public List<String> spectatorNames() {
-        return spectators.stream().map(Spectator::getNickname).toList();
+        synchronized (this) {
+            return spectators.stream().map(Spectator::getNickname).toList();
+        }
     }
 
     public boolean allReady() {
@@ -197,8 +199,23 @@ public class Room {
         return -1;
     }
 
+    /**
+     * 按座位号排序的玩家快照。
+     *
+     * <p>加锁 + 返回副本：广播是在 {@code synchronized(room)} 之外跑的，
+     * 直接流式遍历 {@code players} 会和正在加入的玩家撞出 ConcurrentModificationException。</p>
+     */
     public List<Player> sortedPlayers() {
-        return players.stream().sorted(Comparator.comparingInt(Player::getSeat)).toList();
+        synchronized (this) {
+            return players.stream().sorted(Comparator.comparingInt(Player::getSeat)).toList();
+        }
+    }
+
+    /** 观战者快照，理由同上。 */
+    public List<Spectator> spectatorSnapshot() {
+        synchronized (this) {
+            return List.copyOf(spectators);
+        }
     }
 
     public Player getOwner() {
