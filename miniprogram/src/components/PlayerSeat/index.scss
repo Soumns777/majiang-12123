@@ -80,10 +80,21 @@
     }
   }
 
+  &__stats {
+    display: flex;
+    align-items: center;
+    gap: 10rpx;
+    margin-top: 2rpx;
+  }
+
+  &__beans {
+    font-size: 20rpx;
+    color: #f0d79a;
+  }
+
   &__score {
     font-size: 22rpx;
     color: #c9a04a;
-    margin-top: 2rpx;
   }
 
   &__timer {
@@ -115,11 +126,11 @@
   }
 
   &__discards {
-    display: flex;
-    flex-wrap: wrap;
+    /* 弃牌全部铺开：不再限高裁切，一局里打出去的每一张都看得见 */
+    display: grid;
+    grid-template-columns: repeat(5, 32rpx);
     gap: 4rpx;
     margin-top: 8rpx;
-    max-height: 130rpx;
-    overflow: hidden;
+    justify-content: start;
   }
 }

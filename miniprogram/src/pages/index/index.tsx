@@ -18,6 +18,7 @@ export default function Index() {
   const clearError = useGameStore((state) => state.clearError)
 
   const [roomCode, setRoomCode] = useState('')
+  const [baseScore, setBaseScore] = useState(1)
   const [busy, setBusy] = useState(false)
   const navigated = useRef(false)
 
@@ -55,7 +56,7 @@ export default function Index() {
       return
     }
     setBusy(true)
-    socket.send('ROOM_CREATE', { maxRounds: 8 })
+    socket.send('ROOM_CREATE', { maxRounds: 8, baseScore })
   }
 
   const joinRoom = () => {
@@ -116,6 +117,32 @@ export default function Index() {
             onInput={(event) => setNickname(event.detail.value)}
           />
         </View>
+
+        <View className="home__field">
+          <Text className="home__label">底分</Text>
+          <View className="home__stepper">
+            <View
+              className={`home__step ${baseScore <= 1 ? 'is-disabled' : ''}`}
+              onClick={() => setBaseScore((prev) => Math.max(1, prev - 1))}
+            >
+              −
+            </View>
+            <View className="home__step-value">
+              <Text className="home__step-num">{baseScore}</Text>
+              <Text className="home__step-unit">分</Text>
+            </View>
+            <View
+              className={`home__step ${baseScore >= 10 ? 'is-disabled' : ''}`}
+              onClick={() => setBaseScore((prev) => Math.min(10, prev + 1))}
+            >
+              ＋
+            </View>
+          </View>
+        </View>
+
+        <Text className="home__hint">
+          单家应付 = 牌型分 × 底分 · 开局每人 20 豆
+        </Text>
 
         <View className="home__field">
           <Text className="home__label">房间号</Text>

@@ -74,6 +74,19 @@ export default function Room() {
     socket.send('ROOM_RULE', { voidWildcardOnDiscard: !voidWildcardOn })
   }
 
+  /** 底分：单家应付 = 牌型分 × 底分，房主开局前可调 */
+  const changeBaseScore = (delta: number) => {
+    if (!isOwner) {
+      Taro.showToast({ title: '只有房主可以修改底分', icon: 'none' })
+      return
+    }
+    const next = Math.min(10, Math.max(1, table.baseScore + delta))
+    if (next === table.baseScore) {
+      return
+    }
+    socket.send('ROOM_RULE', { baseScore: next })
+  }
+
   const leaveRoom = () => {
     socket.send('ROOM_LEAVE')
     Taro.navigateBack()
@@ -155,17 +168,48 @@ export default function Room() {
           <Text className="room__info-value">共 {table.maxRounds} 局</Text>
         </View>
         <View className="room__info-row">
+          <Text className="room__info-key">欢乐豆</Text>
+          <Text className="room__info-value">开局每人 20 豆 · 自摸三家付</Text>
+        </View>
+        <View className="room__info-row">
           <Text className="room__info-key">癞子</Text>
           <Text className="room__info-value">开局翻宝，翻出牌的后一张为癞子</Text>
         </View>
         <View className="room__info-row">
           <Text className="room__info-key">胡牌</Text>
-          <Text className="room__info-value">4 面子 + 1 将 · 缺一门 · 有癞子需命中调味剂</Text>
+          <Text className="room__info-value">4 面子 + 1 将 · 缺一门 · 只能自摸</Text>
         </View>
       </View>
 
       <View className="room__rules">
         <View className="room__rule">
+          <View className="room__rule-main">
+            <View className="room__rule-head">
+              <Text className="room__rule-name">底分</Text>
+              <Text className="room__rule-tag">计分</Text>
+            </View>
+            <Text className="room__rule-desc">
+              单家应付 = 牌型分 × 底分。开牌 1 分、11支 3 分、跑风 1 分、混一色 2 分、清一色 4 分累加
+            </Text>
+          </View>
+          <View className={`room__stepper ${isOwner ? '' : 'is-locked'}`}>
+            <View
+              className={`room__step ${table.baseScore <= 1 ? 'is-disabled' : ''}`}
+              onClick={() => changeBaseScore(-1)}
+            >
+              −
+            </View>
+            <Text className="room__step-num">{table.baseScore}</Text>
+            <View
+              className={`room__step ${table.baseScore >= 10 ? 'is-disabled' : ''}`}
+              onClick={() => changeBaseScore(1)}
+            >
+              ＋
+            </View>
+          </View>
+        </View>
+
+        <View className="room__rule room__rule--spaced">
           <View className="room__rule-main">
             <View className="room__rule-head">
               <Text className="room__rule-name">打出癞子，全场作废</Text>

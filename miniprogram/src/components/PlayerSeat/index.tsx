@@ -38,7 +38,12 @@ export default function PlayerSeat({
             {player.bot && <Text className="seat__tag seat__tag--bot">机器人</Text>}
             {!player.online && player.playerId && <Text className="seat__tag seat__tag--off">离线</Text>}
           </View>
-          <Text className="seat__score">{player.score > 0 ? `+${player.score}` : player.score}</Text>
+          <View className="seat__stats">
+            <Text className="seat__beans">豆 {player.beans}</Text>
+            {player.score !== 0 && (
+              <Text className="seat__score">{player.score > 0 ? `+${player.score}` : player.score}</Text>
+            )}
+          </View>
         </View>
       </View>
 
@@ -75,7 +80,7 @@ export default function PlayerSeat({
           {player.discards.map((tile, index) => (
             <Tile
               code={tile}
-              size="xs"
+              size="xxs"
               key={`${tile}-${index}`}
               wildcard={isWild(tile)}
               voided={isVoided(tile)}

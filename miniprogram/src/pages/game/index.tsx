@@ -1,4 +1,4 @@
-import { ScrollView, Text, View } from '@tarojs/components'
+import { Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -33,6 +33,7 @@ export default function Game() {
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [picker, setPicker] = useState<PickerState | null>(null)
+  const [extendSent, setExtendSent] = useState(false)
   const [now, setNow] = useState(Date.now())
   const offsetRef = useRef(0)
   const hadTable = useRef(false)
@@ -89,6 +90,14 @@ export default function Game() {
     setSelectedIndex(null)
   }, [handKey])
 
+  // 延时申请一旦结束（通过/被拒/超时）就解锁，下次还能再申请
+  const extendSeat = table?.extend?.seat
+  useEffect(() => {
+    if (extendSeat === undefined) {
+      setExtendSent(false)
+    }
+  }, [extendSeat])
+
   const anKongTiles = useMemo(() => {
     if (!me) {
       return []
@@ -128,6 +137,16 @@ export default function Game() {
       ? 0
       : Math.max(0, Math.ceil((table.deadlineAt - (now + offsetRef.current)) / 1000))
 
+  // 延时：只有「轮到自己」或「等着自己响应」时才能申请，一局同时只有一个申请
+  const extend = table.extend
+  const isExtendRequester = !!extend && extend.seat === seatIndex
+  const extendApproved = !!extend && seatIndex >= 0 && extend.approvals.includes(seatIndex)
+  const canAskExtend =
+    !extend &&
+    !extendSent &&
+    table.phase !== 'ENDED' &&
+    (isMyTurn || (isClaiming && actions.includes('PASS')))
+
   const actionButtons = actions
     .filter((action) => action !== 'DISCARD')
     .sort((a, b) => (ACTION_PRIORITY[a] ?? 5) - (ACTION_PRIORITY[b] ?? 5))
@@ -135,9 +154,8 @@ export default function Game() {
   const currentPlayer = table.players.find((player) => player.seat === table.currentSeat)
   const result = table.result
   const winner = result ? table.players.find((player) => player.seat === result.winnerSeat) : null
-  const loser = result && result.loserSeat >= 0
-    ? table.players.find((player) => player.seat === result.loserSeat)
-    : null
+  const dealer = table.players.find((player) => player.dealer)
+  const extendPlayer = extend ? table.players.find((player) => player.seat === extend.seat) : null
   const isOwner = table.ownerId === playerId
   const finished = table.status === 'FINISHED'
 
@@ -183,6 +201,19 @@ export default function Game() {
     Taro.reLaunch({ url: '/pages/index/index' })
   }
 
+  /** 申请延时：其他三家全同意才生效，延长一个基础思考时间 */
+  const askExtend = () => {
+    if (!canAskExtend) {
+      return
+    }
+    setExtendSent(true)
+    socket.send('GAME_EXTEND', {})
+  }
+
+  const voteExtend = (agree: boolean) => {
+    socket.send('GAME_EXTEND', { agree })
+  }
+
   return (
     <View className="game">
       <View className="game__bar">
@@ -195,6 +226,10 @@ export default function Game() {
           <Text className="game__bar-value">
             {table.round}/{table.maxRounds}
           </Text>
+        </View>
+        <View className="game__bar-item">
+          <Text className="game__bar-key">底分</Text>
+          <Text className="game__bar-value game__bar-value--gold">{table.baseScore}</Text>
         </View>
         <View className="game__bar-item">
           <Text className="game__bar-key">剩余</Text>
@@ -314,17 +349,17 @@ export default function Game() {
       ) : (
       <View className="game__mine">
         {me.discards.length > 0 && (
-          <ScrollView className="game__my-discards" scrollX>
+          <View className="game__my-discards">
             {me.discards.map((tile, index) => (
               <Tile
                 code={tile}
-                size="xs"
+                size="xxs"
                 key={`${tile}-${index}`}
                 wildcard={isWild(tile)}
                 voided={isVoided(tile)}
               />
             ))}
-          </ScrollView>
+          </View>
         )}
 
         {me.melds.length > 0 && (
@@ -377,8 +412,73 @@ export default function Game() {
               出牌
             </View>
           )}
+          {canAskExtend && (
+            <View className="game__action game__action--ghost" onClick={askExtend}>
+              延时
+            </View>
+          )}
         </View>
       </View>
+      )}
+
+      {extend && (
+        <View className="game__extend">
+          <View className="game__extend-head">
+            <Text className="game__extend-title">
+              {isExtendRequester ? '已申请延时' : `${extendPlayer?.nickname ?? ''} 申请延时`}
+            </Text>
+            <Text className="game__extend-count">
+              {extend.approvals.length}/{extend.need} 同意 · 剩 {remain}s
+            </Text>
+          </View>
+
+          <View className="game__extend-dots">
+            {table.players.map((player) => {
+              const requester = player.seat === extend.seat
+              const agreed = extend.approvals.includes(player.seat)
+              return (
+                <View
+                  className={`game__extend-dot ${requester ? 'is-ask' : ''} ${
+                    agreed ? 'is-yes' : ''
+                  }`}
+                  key={player.seat}
+                >
+                  <Text className="game__extend-name">
+                    {(player.nickname || '闲').slice(0, 2)}
+                  </Text>
+                  <Text className="game__extend-state">
+                    {requester ? '申请' : agreed ? '同意' : '待定'}
+                  </Text>
+                </View>
+              )
+            })}
+          </View>
+
+          {isExtendRequester || seatIndex < 0 ? (
+            <Text className="game__extend-wait">
+              {seatIndex < 0
+                ? '观战中，不参与投票'
+                : '等待其他三家同意，全同意即延长一个基础时长'}
+            </Text>
+          ) : extendApproved ? (
+            <Text className="game__extend-wait">你已同意，等待其他玩家…</Text>
+          ) : (
+            <View className="game__extend-actions">
+              <View
+                className="game__extend-btn game__extend-btn--no"
+                onClick={() => voteExtend(false)}
+              >
+                不同意
+              </View>
+              <View
+                className="game__extend-btn game__extend-btn--yes"
+                onClick={() => voteExtend(true)}
+              >
+                同意
+              </View>
+            </View>
+          )}
+        </View>
       )}
 
       {picker && (
@@ -407,31 +507,60 @@ export default function Game() {
         <View className="game__mask">
           <View className="game__result">
             <Text className="game__result-title">
-              {result.drawGame ? '荒庄' : result.loserSeat >= 0 ? '点炮胡' : '自摸胡'}
+              {result.drawGame ? '荒庄' : '自摸胡'}
             </Text>
 
             {!result.drawGame && (
               <>
                 <Text className="game__result-winner">{winner?.nickname ?? ''}</Text>
-                <View className="game__result-flavors">
-                  {result.flavors.map((flavor) => (
-                    <Text className="game__flavor" key={flavor}>
-                      {flavor}
-                    </Text>
+
+                {/* 胡了什么：逐项列出牌型分，再给出 牌型分 × 底分 的算式 */}
+                <View className="game__breakdown">
+                  {result.breakdown.map((item, index) => (
+                    <View className="game__bd-row" key={`${item.label}-${index}`}>
+                      <Text className="game__bd-label">{item.label}</Text>
+                      <Text className={`game__bd-fan ${item.fan > 0 ? '' : 'is-zero'}`}>
+                        {item.fan > 0 ? `+${item.fan}` : '0'}
+                      </Text>
+                    </View>
                   ))}
+                  <View className="game__bd-row game__bd-row--total">
+                    <Text className="game__bd-label">牌型分</Text>
+                    <Text className="game__bd-fan">{result.fan}</Text>
+                  </View>
                 </View>
+
                 <View className="game__result-hand">
                   {result.winningHand.map((tile, index) => (
                     <Tile code={tile} size="xs" key={`${tile}-${index}`} />
                   ))}
                 </View>
-                <View className="game__result-stats">
-                  <Text className="game__result-stat">{result.fan} 番</Text>
-                  <Text className="game__result-stat">
-                    {result.loserSeat >= 0
-                      ? `${loser?.nickname ?? ''} 付 ${result.score} 分`
-                      : `每家付 ${result.score} 分`}
+
+                <Text className="game__result-formula">
+                  {result.fan} 分 × 底分 {result.baseScore} = 单家 {result.score} 豆 · 自摸三家各付
+                </Text>
+                {dealer && dealer.seat !== result.winnerSeat && (
+                  <Text className="game__result-note">
+                    头家 {dealer.nickname} 额外多扣 1 豆（按规则头家 ±1）
                   </Text>
+                )}
+
+                <View className="game__beans">
+                  {table.players.map((player) => {
+                    const delta =
+                      result.deltas.find((item) => item.seat === player.seat)?.beans ?? 0
+                    return (
+                      <View className="game__bean-row" key={player.seat}>
+                        <Text className="game__bean-name">{player.nickname}</Text>
+                        <Text
+                          className={`game__bean-delta ${delta >= 0 ? 'is-plus' : 'is-minus'}`}
+                        >
+                          {delta > 0 ? `+${delta}` : delta}
+                        </Text>
+                        <Text className="game__bean-left">{player.beans} 豆</Text>
+                      </View>
+                    )
+                  })}
                 </View>
               </>
             )}

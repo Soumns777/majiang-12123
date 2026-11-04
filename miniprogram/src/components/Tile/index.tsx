@@ -6,7 +6,7 @@ import './index.scss'
 
 export interface TileProps {
   code: string
-  size?: 'xs' | 'sm' | 'md' | 'hand'
+  size?: 'xxs' | 'xs' | 'sm' | 'md' | 'hand'
   selected?: boolean
   dimmed?: boolean
   /** 只显示牌背 */

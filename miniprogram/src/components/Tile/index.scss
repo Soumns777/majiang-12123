@@ -33,6 +33,15 @@
     box-shadow: 0 2rpx 0 #b7a884;
   }
 
+  /* 弃牌区专用：一局里打出的牌都要塞得下，所以做得最小 */
+  &--xxs {
+    width: 32rpx;
+    height: 46rpx;
+    border-radius: 5rpx;
+    border-width: 1rpx;
+    box-shadow: 0 1rpx 0 #b7a884;
+  }
+
   /* 手牌专用尺寸：14 张要在一行内放下，宽度按 734rpx 可用宽度反推 */
   &--hand {
     width: 50rpx;
