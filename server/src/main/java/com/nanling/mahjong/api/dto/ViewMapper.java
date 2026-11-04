@@ -64,7 +64,7 @@ public class ViewMapper {
     }
 
     private PlayerView emptySeat(int seat) {
-        return new PlayerView(seat, "", "等待加入", "", 0, false, false, false, false, 0,
+        return new PlayerView(seat, "", "等待加入", "", 0, false, false, false, false, false, 0,
                 List.of(), List.of(), List.of(), List.of());
     }
 
@@ -102,7 +102,7 @@ public class ViewMapper {
         }
 
         return new PlayerView(seat, player.getId(), player.getNickname(), player.getAvatar(),
-                player.getScore(), player.isReady(), player.isOnline(), dealer, current,
+                player.getScore(), player.isReady(), player.isOnline(), player.isBot(), dealer, current,
                 handCount, hand, melds, discards, actions);
     }
 

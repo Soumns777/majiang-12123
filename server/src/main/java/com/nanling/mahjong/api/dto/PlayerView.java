@@ -13,6 +13,8 @@ public record PlayerView(
         int score,
         boolean ready,
         boolean online,
+        /** 是否机器人（前端画个 🤖 角标） */
+        boolean bot,
         boolean dealer,
         boolean current,
         int handCount,

@@ -79,6 +79,16 @@ export default function Room() {
     Taro.navigateBack()
   }
 
+  /** 空座位上补机器人：机器人会自动准备，房主一个人也能开局 */
+  const fillBots = () => {
+    const missing = 4 - seated.length
+    if (missing <= 0) {
+      Taro.showToast({ title: '座位已满', icon: 'none' })
+      return
+    }
+    socket.send('ROOM_BOT', { count: missing })
+  }
+
   return (
     <View className="room">
       <View className="room__header">
@@ -88,7 +98,9 @@ export default function Room() {
           <Text className="room__copy">复制</Text>
         </View>
         <Text className="room__hint">
-          {spectating ? '你正在观战，凑齐 4 人开局后会自动进入牌桌' : '把房间号发给好友，凑齐 4 人即可开局'}
+          {spectating
+            ? '你正在观战，凑齐 4 人开局后会自动进入牌桌'
+            : '把房间号发给好友一起打；一个人也可以补机器人先练手'}
         </Text>
       </View>
 
@@ -120,12 +132,22 @@ export default function Room() {
               <View className="room__badges">
                 {player.seat === 0 && <Text className="room__badge room__badge--dealer">庄</Text>}
                 {player.playerId === table.ownerId && <Text className="room__badge">房主</Text>}
+                {player.bot && <Text className="room__badge room__badge--bot">机器人</Text>}
                 {!empty && player.ready && <Text className="room__badge room__badge--ready">已准备</Text>}
               </View>
             </View>
           )
         })}
       </View>
+
+      {isOwner && !spectating && seated.length < 4 && (
+        <View className="room__bots" onClick={fillBots}>
+          <Text className="room__bots-title">补满机器人 · 一个人也能开局</Text>
+          <Text className="room__bots-desc">
+            还差 {4 - seated.length} 人，机器人会自动准备，出牌一张一张来
+          </Text>
+        </View>
+      )}
 
       <View className="room__info">
         <View className="room__info-row">

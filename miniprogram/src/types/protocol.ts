@@ -32,6 +32,8 @@ export interface PlayerView {
   score: number
   ready: boolean
   online: boolean
+  /** 机器人玩家：由服务端逐个代打 */
+  bot: boolean
   dealer: boolean
   current: boolean
   handCount: number

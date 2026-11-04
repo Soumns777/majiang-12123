@@ -3,6 +3,7 @@ package com.nanling.mahjong.room;
 import com.nanling.mahjong.api.dto.CreateRoomRequest;
 import com.nanling.mahjong.api.dto.TableView;
 import com.nanling.mahjong.api.dto.ViewMapper;
+import com.nanling.mahjong.bot.BotBrain;
 import com.nanling.mahjong.common.BusinessException;
 import com.nanling.mahjong.domain.game.ActionType;
 import com.nanling.mahjong.domain.game.GamePhase;
@@ -36,6 +37,8 @@ public class RoomService {
     private static final SecureRandom RANDOM = new SecureRandom();
     /** 单个房间的观战人数上限，防止一个房间号被拿来当直播间刷爆内存 */
     private static final int MAX_SPECTATORS = 20;
+    /** 机器人昵称，按座位号取，方便一眼分清谁是谁 */
+    private static final String[] BOT_NAMES = {"阿发", "小筒", "老万", "幺鸡"};
 
     private final RoomRepository repository;
     private final ViewMapper viewMapper;
@@ -49,6 +52,10 @@ public class RoomService {
     private final int actionTimeoutSeconds;
     private final int turnTimeoutSeconds;
     private final int idleTimeoutSeconds;
+    /** 机器人每张牌之间的「思考时间」，决定画面上出牌的节奏 */
+    private final int botThinkMs;
+    /** 机器人碰牌概率，0 表示只胡不碰 */
+    private final double botPongChance;
 
     public RoomService(RoomRepository repository,
                        ViewMapper viewMapper,
@@ -57,7 +64,9 @@ public class RoomService {
                        @Value("${mahjong.game.max-rounds:8}") int maxRounds,
                        @Value("${mahjong.game.action-timeout-seconds:15}") int actionTimeoutSeconds,
                        @Value("${mahjong.game.turn-timeout-seconds:20}") int turnTimeoutSeconds,
-                       @Value("${mahjong.room.idle-timeout-seconds:1800}") int idleTimeoutSeconds) {
+                       @Value("${mahjong.room.idle-timeout-seconds:1800}") int idleTimeoutSeconds,
+                       @Value("${mahjong.bot.think-ms:1100}") int botThinkMs,
+                       @Value("${mahjong.bot.pong-chance:0.5}") double botPongChance) {
         this.repository = repository;
         this.viewMapper = viewMapper;
         this.publisher = publisher;
@@ -66,6 +75,8 @@ public class RoomService {
         this.actionTimeoutSeconds = actionTimeoutSeconds;
         this.turnTimeoutSeconds = turnTimeoutSeconds;
         this.idleTimeoutSeconds = idleTimeoutSeconds;
+        this.botThinkMs = botThinkMs;
+        this.botPongChance = botPongChance;
     }
 
     // ------------------------------------------------------------------
@@ -224,12 +235,16 @@ public class RoomService {
                 throw new BusinessException("对局进行中，不能退出房间");
             }
             room.getPlayers().remove(player);
-            if (room.getPlayers().isEmpty()) {
+            if (!room.hasHumanPlayer()) {
+                // 真人都走了，剩一堆机器人没有意义，直接回收房间
                 repository.delete(roomId);
                 return room;
             }
             if (room.getOwnerId().equals(playerId)) {
-                Player next = room.sortedPlayers().get(0);
+                Player next = room.sortedPlayers().stream()
+                        .filter(candidate -> !candidate.isBot())
+                        .findFirst()
+                        .orElseThrow(() -> new BusinessException("没有可移交房主的玩家"));
                 room.transferOwner(next.getId());
             }
             room.touch();
@@ -278,6 +293,44 @@ public class RoomService {
         return room;
     }
 
+    /**
+     * 房主往空座位上补机器人。
+     *
+     * <p>机器人始终「在线 + 已准备」，所以一个人也能凑齐 4 人开局；
+     * 它们由 {@link #tickBots} 逐个代打，节奏和人手一样，不会一瞬间把牌全打光。</p>
+     *
+     * @param count 想补几个，超过空位数时按空位补齐
+     */
+    public Room addBots(String roomId, String playerId, int count) {
+        Room room = requireRoom(roomId);
+        synchronized (room) {
+            if (!room.getOwnerId().equals(playerId)) {
+                throw new BusinessException("只有房主可以添加机器人");
+            }
+            if (room.getStatus() != RoomStatus.WAITING) {
+                throw new BusinessException("对局已开始，不能再添加机器人");
+            }
+            int wanted = Math.min(Math.max(count, 1), 4);
+            int added = 0;
+            for (int i = 0; i < wanted; i++) {
+                int seat = room.nextFreeSeat();
+                if (seat < 0) {
+                    break;
+                }
+                room.getPlayers().add(Player.bot(
+                        "bot-" + room.getId() + "-" + seat, BOT_NAMES[seat % BOT_NAMES.length], seat));
+                added++;
+            }
+            if (added == 0) {
+                throw new BusinessException("座位已满，不需要再加机器人");
+            }
+            room.touch();
+            repository.save(room);
+        }
+        publish(roomId, "bot");
+        return room;
+    }
+
     public Room startGame(String roomId, String playerId) {
         Room room = requireRoom(roomId);
         synchronized (room) {
@@ -297,6 +350,7 @@ public class RoomService {
             room.setRound(1);
             room.setSettledRound(0);
             room.setTable(GameTable.start(room.getRuleConfig(), System.nanoTime(), 0));
+            room.setBotActAt(System.currentTimeMillis() + botThinkMs);
             room.touch();
             repository.save(room);
         }
@@ -347,6 +401,8 @@ public class RoomService {
             if (table.getPhase() == GamePhase.ENDED) {
                 settle(room);
             }
+            // 真人每次操作后，机器人都要「想一想」再动，避免人手一打完机器人立刻抢着出牌
+            room.setBotActAt(System.currentTimeMillis() + botThinkMs);
             room.touch();
             repository.save(room);
         }
@@ -377,6 +433,7 @@ public class RoomService {
             room.setRound(next);
             room.setTable(GameTable.start(room.getRuleConfig(), System.nanoTime(), dealer));
             room.setStatus(RoomStatus.PLAYING);
+            room.setBotActAt(System.currentTimeMillis() + botThinkMs);
             room.touch();
             repository.save(room);
         }
@@ -492,7 +549,7 @@ public class RoomService {
     // 定时任务：超时自动出牌 / 自动放弃
     // ------------------------------------------------------------------
 
-    @Scheduled(fixedDelay = 1000)
+    @Scheduled(fixedDelay = 300)
     public void tick() {
         long now = System.currentTimeMillis();
         for (Room room : repository.findAll()) {
@@ -506,29 +563,124 @@ public class RoomService {
 
     private void tickRoom(Room room, long now) {
         if (room.getStatus() == RoomStatus.PLAYING && room.getTable() != null
-                && room.getTable().getPhase() != GamePhase.ENDED
-                && now > room.getTable().getDeadlineAt()) {
-            boolean changed = false;
-            synchronized (room) {
-                GameTable table = room.getTable();
-                if (table.getPhase() != GamePhase.ENDED && now > table.getDeadlineAt()) {
-                    table.onTimeout();
-                    if (table.getPhase() == GamePhase.ENDED) {
-                        settle(room);
+                && room.getTable().getPhase() != GamePhase.ENDED) {
+            if (now > room.getTable().getDeadlineAt()) {
+                boolean changed = false;
+                synchronized (room) {
+                    GameTable table = room.getTable();
+                    if (table.getPhase() != GamePhase.ENDED && now > table.getDeadlineAt()) {
+                        table.onTimeout();
+                        if (table.getPhase() == GamePhase.ENDED) {
+                            settle(room);
+                        }
+                        room.setBotActAt(now + botThinkMs);
+                        room.touch();
+                        repository.save(room);
+                        changed = true;
                     }
-                    room.touch();
-                    repository.save(room);
-                    changed = true;
                 }
+                if (changed) {
+                    publish(room.getId(), "timeout");
+                }
+                return;
             }
-            if (changed) {
-                publish(room.getId(), "timeout");
-            }
+            tickBots(room, now);
             return;
         }
         boolean idle = now - room.getUpdatedAt() > idleTimeoutSeconds * 1000L;
         if (idle && room.getStatus() == RoomStatus.WAITING) {
             repository.delete(room.getId());
+        }
+    }
+
+    /**
+     * 机器人代打：每次 tick 最多让「一个」机器人做「一个」动作。
+     *
+     * <p>这是「打牌要依次来」的核心：座位是轮流坐庄的，一个 tick 只处理当前该动的那一位，
+     * 动作完再把 {@code botActAt} 推到 {@code now + think-ms}，下一个 tick 还没到点就直接返回。
+     * 于是画面上看到的是——上家出牌 → 停一下 → 下家摸打 → 停一下，而不是一帧内全部打完。</p>
+     */
+    private void tickBots(Room room, long now) {
+        if (now < room.getBotActAt()) {
+            return;
+        }
+        GameTable snapshot = room.getTable();
+        int seat = nextBotSeat(room, snapshot);
+        if (seat < 0) {
+            return;
+        }
+        boolean changed = false;
+        synchronized (room) {
+            GameTable table = room.getTable();
+            if (table == null || table.getPhase() == GamePhase.ENDED) {
+                return;
+            }
+            if (nextBotSeat(room, table) != seat) {
+                // 期间被真人抢先操作了（碰/胡/出牌），本 tick 放弃
+                return;
+            }
+            try {
+                actForBot(table, seat);
+            } catch (BusinessException ex) {
+                log.warn("bot action failed, roomId={}, seat={}, msg={}", room.getId(), seat, ex.getMessage());
+                fallbackForBot(table, seat);
+            }
+            room.setBotActAt(now + botThinkMs);
+            if (table.getPhase() == GamePhase.ENDED) {
+                settle(room);
+            }
+            room.touch();
+            repository.save(room);
+            changed = true;
+        }
+        if (changed) {
+            publish(room.getId(), "bot");
+        }
+    }
+
+    /** 当前轮到谁「该机器人动」，没有就返回 -1。 */
+    private int nextBotSeat(Room room, GameTable table) {
+        if (table == null) {
+            return -1;
+        }
+        if (table.getPhase() == GamePhase.PLAYER_TURN) {
+            int seat = table.getCurrentSeat();
+            return room.isBotSeat(seat) ? seat : -1;
+        }
+        if (table.getPhase() == GamePhase.WAITING_CLAIM) {
+            for (int seat : table.getPendingSeats()) {
+                if (table.getPendingClaims().containsKey(seat)) {
+                    continue;
+                }
+                if (room.isBotSeat(seat)) {
+                    return seat;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private void actForBot(GameTable table, int seat) {
+        if (table.getPhase() == GamePhase.WAITING_CLAIM) {
+            table.claim(seat, BotBrain.chooseClaim(table.claimsFor(seat), botPongChance));
+            return;
+        }
+        if (table.selfActions(seat).contains(ActionType.HU)) {
+            table.selfHu(seat);
+            return;
+        }
+        table.discard(seat, BotBrain.chooseDiscard(table, seat));
+    }
+
+    /** 决策异常时的兜底，避免整桌卡死。 */
+    private void fallbackForBot(GameTable table, int seat) {
+        if (table.getPhase() == GamePhase.WAITING_CLAIM) {
+            table.pass(seat);
+            return;
+        }
+        List<Integer> hand = table.getHand(seat);
+        if (!hand.isEmpty() && hand.size() % 3 == 2) {
+            table.discard(seat, hand.get(hand.size() - 1));
         }
     }
 

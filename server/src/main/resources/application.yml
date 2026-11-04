@@ -29,6 +29,10 @@ mahjong:
     turn-timeout-seconds: 20        # 出牌超时
     base-score: 1                   # 底分
     max-rounds: 8                   # 默认局数
+  # 机器人：每个动作之间的「思考时间」，决定出牌节奏（毫秒）
+  bot:
+    think-ms: 1100
+    pong-chance: 0.5                # 机器人碰牌概率
   # 数据库未接入前，全部使用内存仓储（InMemoryRoomRepository）
   storage:
     mode: memory

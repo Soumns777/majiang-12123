@@ -101,6 +101,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             case ROOM_LEAVE -> onRoomLeave(session);
             case ROOM_READY -> onReady(session, data);
             case ROOM_RULE -> onRoomRule(session, data);
+            case ROOM_BOT -> onRoomBot(session, data);
             case GAME_START -> onGameStart(session);
             case GAME_ACTION -> onGameAction(session, data);
             case NEXT_ROUND -> onNextRound(session);
@@ -196,6 +197,19 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             throw new BusinessException("缺少 voidWildcardOnDiscard 参数");
         }
         roomService.setVoidWildcardOnDiscard(roomId, playerId, data.get("voidWildcardOnDiscard").asBoolean());
+    }
+
+    /**
+     * 补机器人。请求体：{@code {"count": 3}}，不传默认补满空位。
+     *
+     * <p>机器人不是「一次算完全部动作」，服务端每个 tick 只让当前该动的那一位出一张牌，
+     * 所以客户端看到的是正常的一轮一轮的节奏。</p>
+     */
+    private void onRoomBot(WebSocketSession session, JsonNode data) throws Exception {
+        String playerId = requirePlayerId(session);
+        String roomId = requireRoomId(session);
+        int count = (data == null || !data.hasNonNull("count")) ? 3 : data.get("count").asInt(3);
+        roomService.addBots(roomId, playerId, count);
     }
 
     private void onGameStart(WebSocketSession session) throws Exception {

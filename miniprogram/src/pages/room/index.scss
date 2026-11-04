@@ -151,6 +151,34 @@
       color: #7fe0ac;
       border-color: rgba(78, 201, 138, 0.5);
     }
+
+    &--bot {
+      background: rgba(120, 200, 255, 0.16);
+      color: #9fd8ff;
+      border-color: rgba(120, 200, 255, 0.45);
+    }
+  }
+
+  &__bots {
+    margin-top: 26rpx;
+    padding: 22rpx 26rpx;
+    border-radius: 20rpx;
+    background: rgba(120, 200, 255, 0.08);
+    border: 2rpx dashed rgba(120, 200, 255, 0.4);
+
+    &-title {
+      display: block;
+      font-size: 26rpx;
+      color: #9fd8ff;
+    }
+
+    &-desc {
+      display: block;
+      margin-top: 8rpx;
+      font-size: 22rpx;
+      line-height: 1.5;
+      color: rgba(159, 216, 255, 0.6);
+    }
   }
 
   &__info {

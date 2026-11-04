@@ -29,6 +29,14 @@ public class Room {
     private int settledRound;
     private long updatedAt;
     private long version;
+    /**
+     * 下一个机器人动作的最早时间戳（毫秒）。
+     *
+     * <p>机器人不是「一瞬间把牌全打出去」，而是每次动作后把时间推到未来
+     * {@code mahjong.bot.think-ms} 之后，由定时器逐个唤醒——这样画面上就是
+     * 上家打完、下家才动，节奏和人手一致。</p>
+     */
+    private long botActAt;
 
     public Room(String id, String ownerId, RuleConfig ruleConfig) {
         this.id = id;
@@ -105,6 +113,26 @@ public class Room {
 
     public long getVersion() {
         return version;
+    }
+
+    public long getBotActAt() {
+        return botActAt;
+    }
+
+    public void setBotActAt(long botActAt) {
+        this.botActAt = botActAt;
+    }
+
+    /** 房间内是否还有真人（全是机器人时房间可以回收）。 */
+    public boolean hasHumanPlayer() {
+        synchronized (this) {
+            return players.stream().anyMatch(player -> !player.isBot());
+        }
+    }
+
+    /** 座位上的玩家是不是机器人。 */
+    public boolean isBotSeat(int seat) {
+        return findBySeat(seat).map(Player::isBot).orElse(false);
     }
 
     public void touch() {
