@@ -8,6 +8,7 @@ import { socket } from '../../services/socket'
 import { mySeat, useGameStore } from '../../store/gameStore'
 import type { ActionType } from '../../types/protocol'
 import { ACTION_LABEL } from '../../utils/tile'
+import { relaunchHome } from '../../utils/nav'
 import './index.scss'
 
 interface PickerState {
@@ -30,10 +31,11 @@ export default function Game() {
   const error = useGameStore((state) => state.error)
   const clearError = useGameStore((state) => state.clearError)
 
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [picker, setPicker] = useState<PickerState | null>(null)
   const [now, setNow] = useState(Date.now())
   const offsetRef = useRef(0)
+  const hadTable = useRef(false)
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000)
@@ -55,8 +57,12 @@ export default function Game() {
   }, [error, clearError])
 
   useEffect(() => {
-    if (!table) {
-      Taro.redirectTo({ url: '/pages/index/index' })
+    if (table) {
+      hadTable.current = true
+      return
+    }
+    if (hadTable.current) {
+      relaunchHome()
     }
   }, [table])
 
@@ -64,14 +70,24 @@ export default function Game() {
   const me = table?.players.find((player) => player.playerId === playerId)
 
   const others = useMemo(() => {
-    if (!table || seatIndex < 0) {
+    if (!table) {
       return []
     }
-    return [1, 2, 3].map((offset) => table.players[(seatIndex + offset) % 4])
+    // 观战者没有自己的座位，就固定以 0 号位为「下家」，把 4 个人都摆出来
+    const base = seatIndex >= 0 ? seatIndex : 0
+    return [1, 2, 3].map((offset) => table.players[(base + offset) % 4])
   }, [table, seatIndex])
+
+  /** 观战时补上「自己那一侧」的座位，否则 4 家里会少画一家 */
+  const bottomPlayer = table && seatIndex < 0 ? table.players[0] : undefined
 
   const handKey = me?.hand.join(',') ?? ''
   const meldKey = me?.melds.map((meld) => meld.tiles[0]).join(',') ?? ''
+
+  // 手牌一变（摸牌/出牌）就清掉选中态，避免索引错位指向别的牌
+  useEffect(() => {
+    setSelectedIndex(null)
+  }, [handKey])
 
   const anKongTiles = useMemo(() => {
     if (!me) {
@@ -94,15 +110,19 @@ export default function Game() {
       .filter((tile) => me.hand.includes(tile))
   }, [handKey, meldKey])
 
-  if (!table || !me || seatIndex < 0) {
+  if (!table) {
     return <View className="game" />
   }
 
-  const isMyTurn = table.phase === 'PLAYER_TURN' && table.currentSeat === seatIndex
+  // 观战者没有座位（me 为空），但依然要能看到整张牌桌
+  const isMyTurn = !!me && table.phase === 'PLAYER_TURN' && table.currentSeat === seatIndex
   const wildcardCode = table.wildcard
   const wildcardVoided = !!table.wildcardVoided
+  // 癞子角标：未作废时所有该牌都标金；作废后改标划线置灰
+  const isWild = (tile: string) => !!wildcardCode && !wildcardVoided && tile === wildcardCode
+  const isVoided = (tile: string) => !!wildcardCode && wildcardVoided && tile === wildcardCode
   const isClaiming = table.phase === 'WAITING_CLAIM'
-  const actions = me.actions ?? []
+  const actions = me?.actions ?? []
   const remain =
     table.phase === 'ENDED'
       ? 0
@@ -123,16 +143,20 @@ export default function Game() {
 
   const sendAction = (action: ActionType, tile?: string) => {
     socket.send('GAME_ACTION', { action, tile })
-    setSelected(null)
+    setSelectedIndex(null)
     setPicker(null)
   }
 
-  const onTileClick = (code: string) => {
+  // 按索引记录选中，避免手上有两张相同牌时一起高亮
+  const onTileClick = (index: number) => {
     if (!isMyTurn) {
       return
     }
-    setSelected((prev) => (prev === code ? null : code))
+    setSelectedIndex((prev) => (prev === index ? null : index))
   }
+
+  const selectedTile =
+    me && selectedIndex !== null ? me.hand[selectedIndex] ?? null : null
 
   const handleAction = (action: ActionType) => {
     if (action === 'KONG_AN') {
@@ -190,6 +214,18 @@ export default function Game() {
       </View>
 
       <View className="game__arena">
+        {bottomPlayer && (
+          <View className="game__seat game__seat--bottom">
+            <PlayerSeat
+              player={bottomPlayer}
+              position="bottom"
+              isTurn={table.currentSeat === bottomPlayer.seat && table.phase !== 'ENDED'}
+              remainSeconds={remain}
+              wildcardCode={wildcardCode}
+              wildcardVoided={wildcardVoided}
+            />
+          </View>
+        )}
         {others[1] && (
           <View className="game__seat game__seat--top">
             <PlayerSeat
@@ -197,6 +233,8 @@ export default function Game() {
               position="top"
               isTurn={table.currentSeat === others[1].seat && table.phase !== 'ENDED'}
               remainSeconds={remain}
+              wildcardCode={wildcardCode}
+              wildcardVoided={wildcardVoided}
             />
           </View>
         )}
@@ -207,6 +245,8 @@ export default function Game() {
               position="left"
               isTurn={table.currentSeat === others[2].seat && table.phase !== 'ENDED'}
               remainSeconds={remain}
+              wildcardCode={wildcardCode}
+              wildcardVoided={wildcardVoided}
             />
           </View>
         )}
@@ -217,6 +257,8 @@ export default function Game() {
               position="right"
               isTurn={table.currentSeat === others[0].seat && table.phase !== 'ENDED'}
               remainSeconds={remain}
+              wildcardCode={wildcardCode}
+              wildcardVoided={wildcardVoided}
             />
           </View>
         )}
@@ -224,7 +266,12 @@ export default function Game() {
         <View className="game__center">
           <View className="game__last">
             {table.lastDiscardTile ? (
-              <Tile code={table.lastDiscardTile} size="md" />
+              <Tile
+                code={table.lastDiscardTile}
+                size="md"
+                wildcard={isWild(table.lastDiscardTile)}
+                voided={isVoided(table.lastDiscardTile)}
+              />
             ) : (
               <View className="game__last-empty">—</View>
             )}
@@ -252,11 +299,30 @@ export default function Game() {
         </View>
       </View>
 
+      {!me ? (
+        <View className="game__watch-bar">
+          <Text className="game__watch-tag">观战中</Text>
+          <Text className="game__watch-text">
+            {table.spectators.length > 1
+              ? `${table.spectators.length} 人围观 · 看不到任何人的手牌`
+              : '看不到任何人的手牌，只能看四家出牌'}
+          </Text>
+          <View className="game__watch-exit" onClick={backHome}>
+            退出
+          </View>
+        </View>
+      ) : (
       <View className="game__mine">
         {me.discards.length > 0 && (
           <ScrollView className="game__my-discards" scrollX>
             {me.discards.map((tile, index) => (
-              <Tile code={tile} size="xs" key={`${tile}-${index}`} />
+              <Tile
+                code={tile}
+                size="xs"
+                key={`${tile}-${index}`}
+                wildcard={isWild(tile)}
+                voided={isVoided(tile)}
+              />
             ))}
           </ScrollView>
         )}
@@ -266,7 +332,13 @@ export default function Game() {
             {me.melds.map((meld, index) => (
               <View className="game__meld" key={`${meld.type}-${index}`}>
                 {meld.tiles.map((tile, tileIndex) => (
-                  <Tile code={tile} size="xs" key={`${tile}-${tileIndex}`} />
+                  <Tile
+                    code={tile}
+                    size="xs"
+                    key={`${tile}-${tileIndex}`}
+                    wildcard={isWild(tile)}
+                    voided={isVoided(tile)}
+                  />
                 ))}
               </View>
             ))}
@@ -278,10 +350,10 @@ export default function Game() {
             <Tile
               code={tile}
               size="hand"
-              selected={selected === tile}
-              wildcard={!wildcardVoided && tile === wildcardCode}
-              voided={wildcardVoided && tile === wildcardCode}
-              onClick={onTileClick}
+              selected={selectedIndex === index}
+              wildcard={isWild(tile)}
+              voided={isVoided(tile)}
+              onClick={() => onTileClick(index)}
               key={`${tile}-${index}`}
             />
           ))}
@@ -299,14 +371,15 @@ export default function Game() {
           ))}
           {isMyTurn && (
             <View
-              className={`game__action game__action--primary ${selected ? '' : 'is-disabled'}`}
-              onClick={() => selected && sendAction('DISCARD', selected)}
+              className={`game__action game__action--primary ${selectedTile ? '' : 'is-disabled'}`}
+              onClick={() => selectedTile && sendAction('DISCARD', selectedTile)}
             >
               出牌
             </View>
           )}
         </View>
       </View>
+      )}
 
       {picker && (
         <View className="game__mask" onClick={() => setPicker(null)}>
@@ -320,6 +393,8 @@ export default function Game() {
                   code={tile}
                   size="sm"
                   key={tile}
+                  wildcard={isWild(tile)}
+                  voided={isVoided(tile)}
                   onClick={() => sendAction(picker.action, tile)}
                 />
               ))}

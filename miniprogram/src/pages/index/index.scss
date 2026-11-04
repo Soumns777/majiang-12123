@@ -123,6 +123,21 @@
     flex: 1;
   }
 
+  /* 「只看不打」入口：做成次级文字链，不抢主按钮的视觉重量 */
+  &__watch {
+    margin-top: 26rpx;
+    padding: 16rpx 0;
+    text-align: center;
+    font-size: 24rpx;
+    letter-spacing: 2rpx;
+    color: rgba(245, 217, 143, 0.82);
+    border-top: 2rpx dashed rgba(245, 217, 143, 0.2);
+
+    &.is-disabled {
+      opacity: 0.4;
+    }
+  }
+
   &__status {
     display: flex;
     align-items: center;

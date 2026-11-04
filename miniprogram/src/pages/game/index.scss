@@ -80,6 +80,13 @@
       top: 46%;
       transform: translateY(-50%);
     }
+
+    /* 观战时补画「下家」，四家才齐全 */
+    &--bottom {
+      bottom: 16rpx;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
 
   &__center {
@@ -100,7 +107,7 @@
 
   &__last-empty {
     width: 86rpx;
-    height: 120rpx;
+    height: 124rpx;
     border-radius: 10rpx;
     border: 2rpx dashed rgba(245, 217, 143, 0.28);
     display: flex;
@@ -147,6 +154,42 @@
     padding: 16rpx 8rpx calc(20rpx + env(safe-area-inset-bottom));
     background: rgba(4, 26, 18, 0.86);
     border-top: 2rpx solid rgba(214, 178, 106, 0.16);
+  }
+
+  /* 观战底栏：替代手牌区，只留身份提示和退出 */
+  &__watch-bar {
+    display: flex;
+    align-items: center;
+    gap: 14rpx;
+    padding: 26rpx 28rpx calc(26rpx + env(safe-area-inset-bottom));
+    background: rgba(4, 26, 18, 0.86);
+    border-top: 2rpx solid rgba(214, 178, 106, 0.16);
+  }
+
+  &__watch-tag {
+    flex-shrink: 0;
+    padding: 4rpx 16rpx;
+    border-radius: 999rpx;
+    background: rgba(245, 217, 143, 0.9);
+    color: #17301f;
+    font-size: 20rpx;
+    font-weight: 700;
+  }
+
+  &__watch-text {
+    flex: 1;
+    font-size: 21rpx;
+    line-height: 1.4;
+    color: rgba(247, 239, 217, 0.6);
+  }
+
+  &__watch-exit {
+    flex-shrink: 0;
+    padding: 10rpx 24rpx;
+    border-radius: 999rpx;
+    font-size: 22rpx;
+    color: rgba(245, 217, 143, 0.85);
+    border: 2rpx solid rgba(245, 217, 143, 0.4);
   }
 
   &__my-discards {

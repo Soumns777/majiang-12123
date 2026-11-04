@@ -1,9 +1,10 @@
 import { Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 import { socket } from '../../services/socket'
 import { mySeat, useGameStore } from '../../store/gameStore'
+import { navigateOnce, relaunchHome } from '../../utils/nav'
 import './index.scss'
 
 export default function Room() {
@@ -12,11 +13,15 @@ export default function Room() {
   const error = useGameStore((state) => state.error)
   const clearError = useGameStore((state) => state.clearError)
 
+  const hadTable = useRef(false)
+
   const seatIndex = mySeat(table, playerId)
   const me = table?.players.find((player) => player.playerId === playerId)
   const seated = table?.players.filter((player) => player.playerId) ?? []
   const isOwner = table?.ownerId === playerId
   const allReady = seated.length === 4 && seated.every((player) => player.ready)
+  /** 满员 / 已开局时用房间号进来的人会拿到观战视图 */
+  const spectating = !!table?.spectator
 
   useEffect(() => {
     if (!error) {
@@ -27,14 +32,19 @@ export default function Room() {
   }, [error, clearError])
 
   useEffect(() => {
-    if (!table) {
-      Taro.redirectTo({ url: '/pages/index/index' })
+    if (table) {
+      hadTable.current = true
+      return
+    }
+    // 只有「曾经进过房间」才回首页，避免首帧 table 还没到时误跳
+    if (hadTable.current) {
+      relaunchHome()
     }
   }, [table])
 
   useEffect(() => {
     if (table?.status === 'PLAYING' || table?.status === 'FINISHED') {
-      Taro.redirectTo({ url: '/pages/game/index' })
+      navigateOnce('/pages/game/index', 'replace')
     }
   }, [table?.status])
 
@@ -77,8 +87,21 @@ export default function Room() {
           <Text className="room__code-text">{table.roomId}</Text>
           <Text className="room__copy">复制</Text>
         </View>
-        <Text className="room__hint">把房间号发给好友，凑齐 4 人即可开局</Text>
+        <Text className="room__hint">
+          {spectating ? '你正在观战，凑齐 4 人开局后会自动进入牌桌' : '把房间号发给好友，凑齐 4 人即可开局'}
+        </Text>
       </View>
+
+      {spectating && (
+        <View className="room__watch">
+          <Text className="room__watch-tag">观战中</Text>
+          <Text className="room__watch-text">
+            {table.spectators.length > 1
+              ? `${table.spectators.length} 人正在围观，四家出牌都能看到`
+              : '四家出牌都能看到，但看不到任何人的手牌'}
+          </Text>
+        </View>
+      )}
 
       <View className="room__seats">
         {table.players.map((player) => {
@@ -144,12 +167,14 @@ export default function Room() {
 
       <View className="room__actions">
         <View className="mj-btn mj-btn--ghost room__btn" onClick={leaveRoom}>
-          退出
+          {spectating ? '退出观战' : '退出'}
         </View>
-        <View className={`mj-btn room__btn ${me?.ready ? 'mj-btn--ghost' : ''}`} onClick={toggleReady}>
-          {me?.ready ? '取消准备' : '准备'}
-        </View>
-        {isOwner && (
+        {!spectating && (
+          <View className={`mj-btn room__btn ${me?.ready ? 'mj-btn--ghost' : ''}`} onClick={toggleReady}>
+            {me?.ready ? '取消准备' : '准备'}
+          </View>
+        )}
+        {isOwner && !spectating && (
           <View
             className={`mj-btn room__btn room__btn--primary ${
               allReady ? '' : 'mj-btn--disabled'

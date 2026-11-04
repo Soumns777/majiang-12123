@@ -6,7 +6,7 @@ const HONORS: Record<string, string> = {
   W: '西',
   N: '北',
   C: '中',
-  F: '发',
+  F: '發',
   P: '白'
 }
 

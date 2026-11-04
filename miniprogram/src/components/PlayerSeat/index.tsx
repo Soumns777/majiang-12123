@@ -6,13 +6,26 @@ import './index.scss'
 
 interface PlayerSeatProps {
   player: PlayerView
-  position: 'top' | 'left' | 'right'
+  position: 'top' | 'left' | 'right' | 'bottom'
   isTurn: boolean
   remainSeconds?: number
+  /** 本局癞子牌码，用于给副露/弃牌打角标 */
+  wildcardCode?: string
+  /** 癞子是否已作废 */
+  wildcardVoided?: boolean
 }
 
-export default function PlayerSeat({ player, position, isTurn, remainSeconds }: PlayerSeatProps) {
+export default function PlayerSeat({
+  player,
+  position,
+  isTurn,
+  remainSeconds,
+  wildcardCode,
+  wildcardVoided
+}: PlayerSeatProps) {
   const initial = (player.nickname || '闲').slice(0, 1)
+  const isWild = (tile: string) => !!wildcardCode && !wildcardVoided && tile === wildcardCode
+  const isVoided = (tile: string) => !!wildcardCode && wildcardVoided && tile === wildcardCode
 
   return (
     <View className={`seat seat--${position} ${isTurn ? 'is-turn' : ''}`}>
@@ -40,7 +53,13 @@ export default function PlayerSeat({ player, position, isTurn, remainSeconds }: 
             <View className="seat__meld" key={`${meld.type}-${index}`}>
               {meld.tiles.length > 0 ? (
                 meld.tiles.map((tile, tileIndex) => (
-                  <Tile code={tile} size="xs" key={`${tile}-${tileIndex}`} />
+                  <Tile
+                    code={tile}
+                    size="xs"
+                    key={`${tile}-${tileIndex}`}
+                    wildcard={isWild(tile)}
+                    voided={isVoided(tile)}
+                  />
                 ))
               ) : (
                 <Tile code="" size="xs" back />
@@ -53,7 +72,13 @@ export default function PlayerSeat({ player, position, isTurn, remainSeconds }: 
       {player.discards.length > 0 && (
         <View className="seat__discards">
           {player.discards.map((tile, index) => (
-            <Tile code={tile} size="xs" key={`${tile}-${index}`} />
+            <Tile
+              code={tile}
+              size="xs"
+              key={`${tile}-${index}`}
+              wildcard={isWild(tile)}
+              voided={isVoided(tile)}
+            />
           ))}
         </View>
       )}

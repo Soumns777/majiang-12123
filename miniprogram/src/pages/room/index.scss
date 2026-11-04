@@ -47,6 +47,34 @@
     color: rgba(247, 239, 217, 0.4);
   }
 
+  /* 观战提示条 */
+  &__watch {
+    margin-top: 24rpx;
+    display: flex;
+    align-items: center;
+    gap: 14rpx;
+    padding: 18rpx 22rpx;
+    border-radius: 16rpx;
+    background: rgba(245, 217, 143, 0.1);
+    border: 2rpx solid rgba(245, 217, 143, 0.32);
+  }
+
+  &__watch-tag {
+    flex-shrink: 0;
+    padding: 4rpx 14rpx;
+    border-radius: 999rpx;
+    background: rgba(245, 217, 143, 0.9);
+    color: #17301f;
+    font-size: 20rpx;
+    font-weight: 700;
+  }
+
+  &__watch-text {
+    font-size: 22rpx;
+    color: rgba(247, 239, 217, 0.7);
+    line-height: 1.4;
+  }
+
   &__seats {
     margin-top: 40rpx;
     display: flex;

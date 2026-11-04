@@ -12,21 +12,23 @@
   transition: transform 0.12s ease, box-shadow 0.12s ease;
   overflow: hidden;
 
+  /* 所有尺寸的 高 : 宽 必须严格等于 144 : 100，
+     否则 pattern.tsx 里按百分比排布的正圆会被拉成椭圆。 */
   &--md {
     width: 86rpx;
-    height: 120rpx;
+    height: 124rpx;
   }
 
   &--sm {
     width: 56rpx;
-    height: 78rpx;
+    height: 81rpx;
     border-radius: 8rpx;
     box-shadow: 0 3rpx 0 #b7a884, 0 5rpx 10rpx rgba(0, 0, 0, 0.2);
   }
 
   &--xs {
     width: 38rpx;
-    height: 54rpx;
+    height: 55rpx;
     border-radius: 6rpx;
     box-shadow: 0 2rpx 0 #b7a884;
   }
@@ -61,33 +63,43 @@
       0 0 0 4rpx rgba(245, 217, 143, 0.9);
   }
 
-  /* 本局癞子：金色描边 + 右上角金点 */
+  /* 本局癞子：牌面描金 + 右上角「癞」字角标 */
   &.is-wildcard {
     border-color: #d9ad55;
-    box-shadow: 0 3rpx 0 #b7a884, 0 0 0 2rpx rgba(217, 173, 85, 0.85);
-
-    &::after {
-      content: '';
-      position: absolute;
-      top: 4rpx;
-      right: 4rpx;
-      width: 10rpx;
-      height: 10rpx;
-      border-radius: 50%;
-      background: #d9ad55;
-    }
+    background: linear-gradient(180deg, #fffaea 0%, #fbeec4 60%, #f0dc9f 100%);
+    box-shadow: 0 3rpx 0 #c3a15e, 0 0 0 2rpx rgba(217, 173, 85, 0.9),
+      0 0 12rpx rgba(217, 173, 85, 0.5);
   }
 
   /* 癞子已作废：牌面变灰并划掉 */
   &.is-voided {
-    opacity: 0.6;
+    opacity: 0.62;
     border-color: #b9b1a0;
+    background: linear-gradient(180deg, #f4f2ec 0%, #e4e0d5 100%);
 
     .mj-tile__rank,
     .mj-tile__suit,
     .mj-tile__honor {
+      color: #8b8578 !important;
       text-decoration: line-through;
-      color: #8b8578;
+    }
+
+    .mj-face,
+    .mj-tile__blank {
+      filter: grayscale(1);
+      opacity: 0.5;
+    }
+
+    /* 作废后牌面压一道斜杠，一眼能看出失效 */
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: -6%;
+      width: 112%;
+      height: 3rpx;
+      background: rgba(150, 60, 50, 0.55);
+      transform: rotate(-32deg);
     }
   }
 
@@ -188,5 +200,179 @@
 
   &--hand &__honor {
     font-size: 28rpx;
+  }
+
+  /* 白板：真实牌面是空白的，只留一道内框 */
+  &__blank {
+    position: absolute;
+    top: 14%;
+    right: 16%;
+    bottom: 14%;
+    left: 16%;
+    border: 3rpx solid #2f6a48;
+    border-radius: 4rpx;
+  }
+
+  /* 「癞」字角标：右上角，压在牌面上 */
+  &__wild {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34rpx;
+    height: 34rpx;
+    background: linear-gradient(160deg, #e8b95c 0%, #c8912f 100%);
+    border-bottom-left-radius: 8rpx;
+    border-top-right-radius: 8rpx;
+    box-shadow: -1rpx 1rpx 3rpx rgba(120, 80, 20, 0.35);
+  }
+
+  &__wild-text {
+    font-size: 22rpx;
+    font-weight: 700;
+    line-height: 1;
+    color: #fffdf6;
+    font-family: 'Songti SC', 'STSong', serif;
+  }
+
+  &--sm &__wild {
+    width: 22rpx;
+    height: 22rpx;
+    border-bottom-left-radius: 6rpx;
+  }
+
+  &--sm &__wild-text {
+    font-size: 14rpx;
+  }
+
+  &--xs &__wild {
+    width: 16rpx;
+    height: 16rpx;
+    border-bottom-left-radius: 4rpx;
+  }
+
+  &--xs &__wild-text {
+    font-size: 11rpx;
+  }
+
+  &--hand &__wild {
+    width: 20rpx;
+    height: 20rpx;
+    border-bottom-left-radius: 5rpx;
+  }
+
+  &--hand &__wild-text {
+    font-size: 13rpx;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * 图形牌面（筒 / 条）：按 100 × 144 虚拟画布绝对定位，百分比换算见 pattern.tsx
+ * ------------------------------------------------------------------ */
+.mj-face {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.mj-dot {
+  position: absolute;
+  border-radius: 50%;
+  box-sizing: border-box;
+  /* 筒子：外圈深蓝 + 内圈留白 + 中心红点，还原常见牌面 */
+  background: radial-gradient(
+    circle at 50% 50%,
+    #c0392b 0%,
+    #c0392b 26%,
+    #fffdf6 27%,
+    #fffdf6 48%,
+    #1f5fa8 49%,
+    #1f5fa8 100%
+  );
+  box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.35);
+
+  &--big {
+    background: radial-gradient(
+      circle at 50% 50%,
+      #c0392b 0%,
+      #c0392b 18%,
+      #fffdf6 19%,
+      #fffdf6 38%,
+      #1f5fa8 39%,
+      #1f5fa8 76%,
+      #fffdf6 77%,
+      #fffdf6 88%,
+      #1f5fa8 89%,
+      #1f5fa8 100%
+    );
+  }
+}
+
+.mj-stick {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 40%;
+  /* 条子：竹节，上下深绿、中段浅绿，中间一道高光 */
+  background: linear-gradient(
+    180deg,
+    #1f7a45 0%,
+    #1f7a45 22%,
+    #3ea06a 23%,
+    #6fc294 50%,
+    #3ea06a 77%,
+    #1f7a45 78%,
+    #1f7a45 100%
+  );
+  box-shadow: inset 1rpx 0 0 rgba(255, 255, 255, 0.35);
+}
+
+/* 1 条（幺鸡）：简化鸟形，绿身红喙 */
+.mj-bird {
+  &__body {
+    position: absolute;
+    background: linear-gradient(150deg, #3ea06a 0%, #1f7a45 100%);
+    border-radius: 46% 40% 42% 48%;
+  }
+
+  &__wing {
+    position: absolute;
+    background: linear-gradient(120deg, #6fc294 0%, #2f8c55 100%);
+    border-radius: 50% 40% 50% 40%;
+    opacity: 0.9;
+  }
+
+  &__head {
+    position: absolute;
+    background: linear-gradient(160deg, #4bab77 0%, #1f7a45 100%);
+    border-radius: 50%;
+  }
+
+  &__beak {
+    position: absolute;
+    background: linear-gradient(90deg, #e0a12f 0%, #c0392b 100%);
+    border-radius: 40% 60% 60% 40%;
+  }
+
+  &__eye {
+    position: absolute;
+    background: #fffdf6;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1rpx #1a1a1a;
+  }
+
+  &__tail {
+    position: absolute;
+    background: linear-gradient(90deg, #1f7a45 0%, #3ea06a 100%);
+    border-radius: 40% 20% 20% 40%;
+  }
+
+  &__foot {
+    position: absolute;
+    background: #c0392b;
+    border-radius: 1rpx;
   }
 }

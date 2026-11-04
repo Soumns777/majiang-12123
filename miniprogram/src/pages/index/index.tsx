@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { socket } from '../../services/socket'
 import { useGameStore } from '../../store/gameStore'
+import { navigateOnce } from '../../utils/nav'
 import './index.scss'
 
 const RULES = ['4 面子 + 1 将', '缺一门', '9支 / 11支', '混一色', '跑风']
@@ -34,9 +35,8 @@ export default function Index() {
     }
     navigated.current = true
     setBusy(false)
-    Taro.navigateTo({
-      url: table.status === 'PLAYING' ? '/pages/game/index' : '/pages/room/index'
-    })
+    // 隐藏的首页实例也会跑到这里，navigateOnce 会挡掉「已经在该页」的情况
+    navigateOnce(table.status === 'PLAYING' ? '/pages/game/index' : '/pages/room/index')
     setTimeout(() => {
       navigated.current = false
     }, 1000)
@@ -69,6 +69,20 @@ export default function Index() {
     }
     setBusy(true)
     socket.send('ROOM_JOIN', { roomId: code })
+  }
+
+  /** 只看不打：不论房间满没满、开没开局，都以观战身份进入 */
+  const watchRoom = () => {
+    if (!ensureConnected()) {
+      return
+    }
+    const code = roomCode.trim()
+    if (!/^\d{6}$/.test(code)) {
+      Taro.showToast({ title: '请输入要观战的房间号', icon: 'none' })
+      return
+    }
+    setBusy(true)
+    socket.send('ROOM_WATCH', { roomId: code })
   }
 
   return (
@@ -128,6 +142,13 @@ export default function Index() {
           >
             加入房间
           </View>
+        </View>
+
+        <View
+          className={`home__watch ${!connected || busy ? 'is-disabled' : ''}`}
+          onClick={watchRoom}
+        >
+          只看不打 · 用房间号观战
         </View>
       </View>
 
